@@ -1,0 +1,28 @@
+<?php
+
+namespace l3aro\AuthToken\Http\Middleware;
+
+use Closure;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+class CheckForAnyAbility
+{
+    public function handle(Request $request, Closure $next, string ...$abilities): Response
+    {
+        $user = $request->user();
+
+        if (! $user || ! method_exists($user, 'tokenCan')) {
+            throw new AuthenticationException;
+        }
+
+        foreach ($abilities as $ability) {
+            if ($user->tokenCan($ability)) {
+                return $next($request);
+            }
+        }
+
+        abort(403);
+    }
+}
