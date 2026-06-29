@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use l3aro\AuthToken\AuthToken;
 use l3aro\AuthToken\Models\PersonalAccessToken;
+use l3aro\AuthToken\Models\TokenSession;
 use l3aro\AuthToken\Support\NewAccessToken;
+use l3aro\AuthToken\Support\NewTokenPair;
 
 /**
  * @mixin Model
@@ -27,6 +29,19 @@ trait HasAuthTokens
     public function createToken(string $name, array $abilities = ['*'], ?DateTimeInterface $expiresAt = null): NewAccessToken
     {
         return app(AuthToken::class)->createToken($this, $name, $abilities, $expiresAt);
+    }
+
+    /**
+     * @param  array<int, string>  $abilities
+     */
+    public function createTokenPair(string $name, array $abilities = ['*']): NewTokenPair
+    {
+        return app(AuthToken::class)->createTokenPair($this, $name, $abilities);
+    }
+
+    public function tokenSessions(): MorphMany
+    {
+        return $this->morphMany(TokenSession::class, 'tokenable');
     }
 
     public function currentAccessToken(): ?PersonalAccessToken
