@@ -61,7 +61,7 @@ trait HasAuthTokens
         return $this->accessToken?->can($ability) ?? false;
     }
 
-    public function tokenCant(string $ability): bool
+    public function tokenCannot(string $ability): bool
     {
         return ! $this->tokenCan($ability);
     }

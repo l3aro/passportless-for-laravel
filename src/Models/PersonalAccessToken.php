@@ -46,7 +46,7 @@ class PersonalAccessToken extends Model implements HasAbilities
             || in_array($ability, $this->abilities ?? [], true);
     }
 
-    public function cant(string $ability): bool
+    public function cannot(string $ability): bool
     {
         return ! $this->can($ability);
     }

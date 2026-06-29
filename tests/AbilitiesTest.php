@@ -15,8 +15,8 @@ use l3aro\AuthToken\Models\Tokenable;
 it('allows exact token abilities', function () {
     $token = new PersonalAccessToken(['abilities' => ['orders:read']]);
 
-    expect($token->can('orders:read'))->toBeTrue()
-        ->and($token->cant('orders:write'))->toBeTrue();
+        expect($token->can('orders:read'))->toBeTrue()
+        ->and($token->cannot('orders:write'))->toBeTrue();
 });
 
 it('allows wildcard token abilities', function () {
@@ -36,7 +36,7 @@ it('checks abilities through the tokenable model trait', function () {
     $user->withAccessToken($token);
 
     expect($user->tokenCan('orders:read'))->toBeTrue()
-        ->and($user->tokenCant('orders:write'))->toBeTrue();
+        ->and($user->tokenCannot('orders:write'))->toBeTrue();
 });
 
 it('authenticates bearer tokens through the package guard', function () {
