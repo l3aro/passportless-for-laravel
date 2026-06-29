@@ -47,11 +47,15 @@ it('authenticates bearer tokens through the package guard', function () {
     Schema::create('auth_tokens', function (Blueprint $table) {
         $table->id();
         $table->morphs('tokenable');
+        $table->uuid('session_id')->nullable();
         $table->string('name');
         $table->string('token', 64)->unique();
         $table->json('abilities')->nullable();
+        $table->string('guard')->nullable();
+        $table->string('provider')->nullable();
         $table->timestamp('last_used_at')->nullable();
         $table->timestamp('expires_at')->nullable();
+        $table->timestamp('revoked_at')->nullable();
         $table->timestamps();
     });
 
