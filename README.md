@@ -65,7 +65,7 @@ $token = $user->createToken('iphone', ['orders:read', 'orders:write']);
 return ['token' => $token->plainTextToken];
 ```
 
-Use `tokenCan` and `tokenCant` to check the current access token abilities:
+Use `tokenCan` and `tokenCannot` to check the current access token abilities:
 
 ```php
 if ($request->user()->tokenCan('orders:read')) {
