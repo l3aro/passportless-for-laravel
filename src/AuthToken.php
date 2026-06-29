@@ -6,6 +6,7 @@ use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use l3aro\AuthToken\Enums\RefreshTokenReuseDetection;
 use l3aro\AuthToken\Models\PersonalAccessToken;
 use l3aro\AuthToken\Models\RefreshToken;
 use l3aro\AuthToken\Models\TokenSession;
@@ -65,22 +66,42 @@ class AuthToken
                 return null;
             }
 
-            if ($lockedRefreshToken->isRotated()) {
-                if (config('auth-token-for-laravel.refresh_token.reuse_detection', 'revoke_family') === 'revoke_family') {
-                    $this->revokeFamily($lockedRefreshToken->family_id);
-                }
+            if ($this->shouldRevokeFamily($lockedRefreshToken)) {
+                $this->revokeFamily($lockedRefreshToken->family_id);
+            }
 
+            if ($lockedRefreshToken->isRotated()) {
                 return null;
             }
 
-            if ($lockedRefreshToken->isExpired() || $lockedRefreshToken->isRevoked() || ! $this->matchesConfiguredContext($lockedRefreshToken)) {
+            if ($lockedRefreshToken->isExpired()) {
+                return null;
+            }
+
+            if ($lockedRefreshToken->isRevoked()) {
+                return null;
+            }
+
+            if (! $this->matchesConfiguredContext($lockedRefreshToken)) {
                 return null;
             }
 
             $session = $lockedRefreshToken->session;
             $tokenable = $lockedRefreshToken->tokenable;
 
-            if (! $session instanceof TokenSession || $session->isRevoked() || ! $this->matchesConfiguredContext($session) || ! $tokenable instanceof Model) {
+            if (! $session instanceof TokenSession) {
+                return null;
+            }
+
+            if ($session->isRevoked()) {
+                return null;
+            }
+
+            if (! $this->matchesConfiguredContext($session)) {
+                return null;
+            }
+
+            if (! $tokenable instanceof Model) {
                 return null;
             }
 
@@ -98,27 +119,19 @@ class AuthToken
 
     public function findToken(string $plainTextToken): ?PersonalAccessToken
     {
-        if (strlen($plainTextToken) > (int) config('auth-token-for-laravel.token.max_length', 120)) {
+        $parsedToken = $this->parsePlainTextToken($plainTextToken);
+
+        if ($parsedToken === null) {
             return null;
         }
 
-        if (! str_contains($plainTextToken, '|')) {
-            return null;
-        }
-
-        [$id, $token] = explode('|', $plainTextToken, 2);
-
-        if ($id === '' || $token === '') {
-            return null;
-        }
-
-        $accessToken = PersonalAccessToken::query()->find($id);
+        $accessToken = PersonalAccessToken::query()->find($parsedToken['id']);
 
         if (! $accessToken instanceof PersonalAccessToken) {
             return null;
         }
 
-        if (! hash_equals($accessToken->token, hash('sha256', $token))) {
+        if (! hash_equals($accessToken->token, hash('sha256', $parsedToken['token']))) {
             return null;
         }
 
@@ -130,6 +143,30 @@ class AuthToken
     }
 
     public function findRefreshToken(string $plainTextToken): ?RefreshToken
+    {
+        $parsedToken = $this->parsePlainTextToken($plainTextToken);
+
+        if ($parsedToken === null) {
+            return null;
+        }
+
+        $refreshToken = RefreshToken::query()->find($parsedToken['id']);
+
+        if (! $refreshToken instanceof RefreshToken) {
+            return null;
+        }
+
+        if (! hash_equals($refreshToken->token, hash('sha256', $parsedToken['token']))) {
+            return null;
+        }
+
+        return $refreshToken;
+    }
+
+    /**
+     * @return array{id: string, token: string}|null
+     */
+    private function parsePlainTextToken(string $plainTextToken): ?array
     {
         if (strlen($plainTextToken) > (int) config('auth-token-for-laravel.token.max_length', 120)) {
             return null;
@@ -145,17 +182,7 @@ class AuthToken
             return null;
         }
 
-        $refreshToken = RefreshToken::query()->find($id);
-
-        if (! $refreshToken instanceof RefreshToken) {
-            return null;
-        }
-
-        if (! hash_equals($refreshToken->token, hash('sha256', $token))) {
-            return null;
-        }
-
-        return $refreshToken;
+        return ['id' => $id, 'token' => $token];
     }
 
     /**
@@ -210,5 +237,20 @@ class AuthToken
         }
 
         return $accessToken->abilities ?? [];
+    }
+
+    protected function shouldRevokeFamily(RefreshToken $token): bool
+    {
+        if (! $token->isRotated()) {
+            return false;
+        }
+
+        $value = config('auth-token-for-laravel.refresh_token.reuse_detection', RefreshTokenReuseDetection::REVOKE_FAMILY);
+
+        $detection = $value instanceof RefreshTokenReuseDetection
+            ? $value
+            : (RefreshTokenReuseDetection::tryFrom((string) $value) ?? RefreshTokenReuseDetection::IGNORE);
+
+        return $detection === RefreshTokenReuseDetection::REVOKE_FAMILY;
     }
 }

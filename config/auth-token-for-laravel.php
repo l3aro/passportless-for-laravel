@@ -15,7 +15,10 @@ return [
 
     'refresh_token' => [
         'expiration' => 43200,
-        'reuse_detection' => 'revoke_family',
+        'reuse_detection' => env(
+            'AUTH_TOKEN_REUSE_DETECTION',
+            \l3aro\AuthToken\Enums\RefreshTokenReuseDetection::REVOKE_FAMILY
+        ),
     ],
 
     'abilities' => [

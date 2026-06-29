@@ -141,6 +141,20 @@ it('can leave refresh token family untouched on reuse when configured', function
         ->and(RefreshToken::query()->where('family_id', $pair->refreshToken->family_id)->whereNull('revoked_at')->count())->toBe(2);
 });
 
+it('returns null for malformed plainText tokens (parse failures in findToken/findRefreshToken)', function () {
+    $auth = app(AuthToken::class);
+
+    // over max_length (default 120)
+    expect($auth->findToken(str_repeat('x', 130)))->toBeNull();
+
+    // no pipe
+    expect($auth->findToken('no-separator-here'))->toBeNull();
+
+    // empty id part or token part
+    expect($auth->findToken('|secret'))->toBeNull()
+        ->and($auth->findRefreshToken('123|'))->toBeNull();
+});
+
 class AuthTokenRefreshTestUser extends Tokenable
 {
     public $timestamps = false;
