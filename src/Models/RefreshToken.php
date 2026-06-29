@@ -6,28 +6,27 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
-use l3aro\AuthToken\Contracts\HasAbilities;
 
 /**
- * @property array<int, string>|null $abilities
- * @property Carbon|null $expires_at
+ * @property Carbon $expires_at
+ * @property Carbon|null $rotated_at
  * @property Carbon|null $revoked_at
+ * @property string $family_id
  * @property string $token
  */
-class PersonalAccessToken extends Model implements HasAbilities
+class RefreshToken extends Model
 {
     protected $guarded = [];
 
     protected $casts = [
-        'abilities' => 'array',
-        'last_used_at' => 'datetime',
         'expires_at' => 'datetime',
+        'rotated_at' => 'datetime',
         'revoked_at' => 'datetime',
     ];
 
     public function getTable(): string
     {
-        return config('auth-token-for-laravel.access_tokens_table', 'auth_tokens');
+        return config('auth-token-for-laravel.refresh_tokens_table', 'auth_refresh_tokens');
     }
 
     public function tokenable(): MorphTo
@@ -40,20 +39,14 @@ class PersonalAccessToken extends Model implements HasAbilities
         return $this->belongsTo(TokenSession::class, 'session_id');
     }
 
-    public function can(string $ability): bool
-    {
-        return in_array('*', $this->abilities ?? [], true)
-            || in_array($ability, $this->abilities ?? [], true);
-    }
-
-    public function cant(string $ability): bool
-    {
-        return ! $this->can($ability);
-    }
-
     public function isExpired(): bool
     {
-        return $this->expires_at !== null && $this->expires_at->isPast();
+        return $this->expires_at->isPast();
+    }
+
+    public function isRotated(): bool
+    {
+        return $this->rotated_at !== null;
     }
 
     public function isRevoked(): bool
