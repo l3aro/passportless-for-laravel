@@ -6,22 +6,60 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up()
+    public function up(): void
     {
-        Schema::create(config('auth-token-for-laravel.table', 'auth_tokens'), function (Blueprint $table) {
+        Schema::create(config('auth-token-for-laravel.sessions_table', 'auth_token_sessions'), function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->morphs('tokenable');
+            $table->string('name');
+            $table->string('guard')->nullable();
+            $table->string('provider')->nullable();
+            $table->string('ip_address', 45)->nullable();
+            $table->text('user_agent')->nullable();
+            $table->timestamp('last_used_at')->nullable();
+            $table->timestamp('revoked_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create(config('auth-token-for-laravel.access_tokens_table', 'auth_tokens'), function (Blueprint $table) {
             $table->id();
             $table->morphs('tokenable');
+            $table->uuid('session_id')->nullable();
             $table->string('name');
             $table->string('token', 64)->unique();
             $table->json('abilities')->nullable();
+            $table->string('guard')->nullable();
+            $table->string('provider')->nullable();
             $table->timestamp('last_used_at')->nullable();
             $table->timestamp('expires_at')->nullable();
+            $table->timestamp('revoked_at')->nullable();
             $table->timestamps();
+
+            $table->index(['session_id', 'revoked_at']);
+        });
+
+        Schema::create(config('auth-token-for-laravel.refresh_tokens_table', 'auth_refresh_tokens'), function (Blueprint $table) {
+            $table->id();
+            $table->morphs('tokenable');
+            $table->uuid('session_id');
+            $table->uuid('family_id');
+            $table->string('token', 64)->unique();
+            $table->string('guard')->nullable();
+            $table->string('provider')->nullable();
+            $table->timestamp('expires_at');
+            $table->timestamp('rotated_at')->nullable();
+            $table->timestamp('revoked_at')->nullable();
+            $table->timestamps();
+
+            $table->index(['session_id', 'family_id']);
+            $table->index(['family_id', 'revoked_at']);
         });
     }
 
-    public function down()
+    public function down(): void
     {
-        Schema::dropIfExists(config('auth-token-for-laravel.table', 'auth_tokens'));
+        Schema::dropIfExists(config('auth-token-for-laravel.refresh_tokens_table', 'auth_refresh_tokens'));
+        Schema::dropIfExists(config('auth-token-for-laravel.access_tokens_table', 'auth_tokens'));
+        Schema::dropIfExists(config('auth-token-for-laravel.sessions_table', 'auth_token_sessions'));
     }
 };
