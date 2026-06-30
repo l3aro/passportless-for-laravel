@@ -190,6 +190,32 @@ it('rejects ability middleware without an authenticated token user', function ()
     (new CheckAbilities)->handle(Request::create('/'), fn () => response('ok'), 'orders:read');
 })->throws(AuthenticationException::class);
 
+it('rejects ability middleware without required abilities', function () {
+    $request = Request::create('/');
+    $request->setUserResolver(fn () => new class
+    {
+        public function tokenCan(string $ability): bool
+        {
+            return true;
+        }
+    });
+
+    (new CheckAbilities)->handle($request, fn () => response('ok'));
+})->throws(AuthenticationException::class);
+
+it('rejects any ability middleware without required abilities', function () {
+    $request = Request::create('/');
+    $request->setUserResolver(fn () => new class
+    {
+        public function tokenCan(string $ability): bool
+        {
+            return true;
+        }
+    });
+
+    (new CheckForAnyAbility)->handle($request, fn () => response('ok'));
+})->throws(AuthenticationException::class);
+
 class AuthTokenTestUser extends Tokenable
 {
     public $timestamps = false;
