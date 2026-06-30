@@ -18,7 +18,7 @@ class AuthToken
     /**
      * @param  array<int, string>  $abilities
      */
-    public function createToken(Model $tokenable, string $name, array $abilities = ['*'], ?DateTimeInterface $expiresAt = null): NewAccessToken
+    public function createToken(Model $tokenable, string $name, array $abilities = ['*'], ?DateTimeInterface $expiresAt = null, string|int|null $sessionId = null): NewAccessToken
     {
         $plainTextToken = Str::random(40);
 
@@ -26,6 +26,7 @@ class AuthToken
             'name' => $name,
             'token' => hash('sha256', $plainTextToken),
             'abilities' => $abilities,
+            'session_id' => $sessionId,
             'guard' => config('auth-token-for-laravel.guard'),
             'provider' => config('auth-token-for-laravel.provider'),
             'expires_at' => $expiresAt ?? now()->addMinutes((int) config('auth-token-for-laravel.access_token.expiration', 15)),
@@ -39,13 +40,15 @@ class AuthToken
      */
     public function createTokenPair(Model $tokenable, string $name, array $abilities = ['*']): NewTokenPair
     {
-        $session = $tokenable->morphMany(TokenSession::class, 'tokenable')->create([
-            'name' => $name,
-            'guard' => config('auth-token-for-laravel.guard'),
-            'provider' => config('auth-token-for-laravel.provider'),
-        ]);
+        return DB::transaction(function () use ($tokenable, $name, $abilities): NewTokenPair {
+            $session = $tokenable->morphMany(TokenSession::class, 'tokenable')->create([
+                'name' => $name,
+                'guard' => config('auth-token-for-laravel.guard'),
+                'provider' => config('auth-token-for-laravel.provider'),
+            ]);
 
-        return $this->issueTokenPair($tokenable, $session, (string) Str::uuid(), $name, $abilities);
+            return $this->issueTokenPair($tokenable, $session, (string) Str::uuid(), $name, $abilities);
+        });
     }
 
     /**
@@ -200,8 +203,7 @@ class AuthToken
      */
     protected function issueTokenPair(Model $tokenable, TokenSession $session, string $familyId, string $name, array $abilities): NewTokenPair
     {
-        $accessToken = $this->createToken($tokenable, $name, $abilities);
-        $accessToken->accessToken->forceFill(['session_id' => $session->getKey()])->save();
+        $accessToken = $this->createToken($tokenable, $name, $abilities, null, $session->getKey());
 
         $plainTextRefreshToken = Str::random(64);
 
