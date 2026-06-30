@@ -124,6 +124,38 @@ it('throttles last used updates on bearer token authentication', function () {
     expect($newToken->accessToken->fresh()->last_used_at?->equalTo($firstLastUsedAt))->toBeTrue();
 });
 
+it('atomically throttles concurrent last used updates', function () {
+    config()->set('auth-token-for-laravel.access_token.last_used_update_interval', 60);
+
+    Schema::create('auth_tokens', function (Blueprint $table) {
+        $table->ulid('id')->primary();
+        $table->morphs('tokenable');
+        $table->uuid('session_id')->nullable();
+        $table->string('name');
+        $table->string('token', 64)->unique();
+        $table->json('abilities')->nullable();
+        $table->string('guard')->nullable();
+        $table->string('provider')->nullable();
+        $table->timestamp('last_used_at')->nullable();
+        $table->timestamp('expires_at')->nullable();
+        $table->timestamp('revoked_at')->nullable();
+        $table->timestamps();
+    });
+
+    $token = PersonalAccessToken::query()->create([
+        'tokenable_type' => AuthTokenTestUser::class,
+        'tokenable_id' => 1,
+        'name' => 'cli',
+        'token' => hash('sha256', 'token'),
+    ]);
+    $firstRequestToken = $token->fresh();
+    $secondRequestToken = $token->fresh();
+    $usedAt = now();
+
+    expect($firstRequestToken?->recordUsage($usedAt))->toBeTrue()
+        ->and($secondRequestToken?->recordUsage($usedAt))->toBeFalse();
+});
+
 it('requires every ability for abilities middleware', function () {
     $request = Request::create('/');
     $request->setUserResolver(fn () => new class

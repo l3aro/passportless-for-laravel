@@ -57,6 +57,27 @@ class PersonalAccessToken extends Model implements HasAbilities
         return ! $this->can($ability);
     }
 
+    public function recordUsage(Carbon $usedAt): bool
+    {
+        $threshold = $usedAt->copy()->subSeconds(
+            max(0, (int) config('auth-token-for-laravel.access_token.last_used_update_interval', 60))
+        );
+
+        $updated = static::query()
+            ->whereKey($this->getKey())
+            ->where(function (Builder $query) use ($threshold): void {
+                $query->whereNull('last_used_at')
+                    ->orWhere('last_used_at', '<=', $threshold);
+            })
+            ->update(['last_used_at' => $usedAt]);
+
+        if ($updated === 1) {
+            $this->setAttribute('last_used_at', $usedAt);
+        }
+
+        return $updated === 1;
+    }
+
     public function isExpired(): bool
     {
         return $this->expires_at !== null && $this->expires_at->isPast();
