@@ -45,7 +45,7 @@ it('authenticates bearer tokens through the package guard', function () {
     });
 
     Schema::create('auth_tokens', function (Blueprint $table) {
-        $table->id();
+        $table->ulid('id')->primary();
         $table->morphs('tokenable');
         $table->uuid('session_id')->nullable();
         $table->string('name');

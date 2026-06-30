@@ -25,7 +25,7 @@ beforeEach(function () {
     });
 
     Schema::create('auth_tokens', function (Blueprint $table) {
-        $table->id();
+        $table->ulid('id')->primary();
         $table->morphs('tokenable');
         $table->uuid('session_id')->nullable();
         $table->string('name');
@@ -40,7 +40,7 @@ beforeEach(function () {
     });
 
     Schema::create('auth_refresh_tokens', function (Blueprint $table) {
-        $table->id();
+        $table->ulid('id')->primary();
         $table->morphs('tokenable');
         $table->uuid('session_id');
         $table->uuid('family_id');
