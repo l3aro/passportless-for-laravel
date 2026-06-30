@@ -139,6 +139,16 @@ class AuthToken
             return null;
         }
 
+        $sessionId = $accessToken->getAttribute('session_id');
+
+        if ($sessionId !== null) {
+            $session = $accessToken->session;
+
+            if (! $session instanceof TokenSession || $session->isRevoked() || ! $this->matchesConfiguredContext($session)) {
+                return null;
+            }
+        }
+
         return $accessToken;
     }
 
