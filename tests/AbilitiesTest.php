@@ -15,7 +15,7 @@ use l3aro\AuthToken\Models\Tokenable;
 it('allows exact token abilities', function () {
     $token = new PersonalAccessToken(['abilities' => ['orders:read']]);
 
-        expect($token->can('orders:read'))->toBeTrue()
+    expect($token->can('orders:read'))->toBeTrue()
         ->and($token->cannot('orders:write'))->toBeTrue();
 });
 
@@ -78,6 +78,43 @@ it('authenticates bearer tokens through the package guard', function () {
         ->and($resolvedUser->{'currentAccessToken'}()->last_used_at)->not->toBeNull();
 });
 
+it('throttles last used updates on bearer token authentication', function () {
+    config()->set('auth-token-for-laravel.access_token.last_used_update_interval', 60);
+
+    Schema::create('auth_token_throttle_test_users', function (Blueprint $table) {
+        $table->id();
+    });
+
+    Schema::create('auth_tokens', function (Blueprint $table) {
+        $table->ulid('id')->primary();
+        $table->morphs('tokenable');
+        $table->uuid('session_id')->nullable();
+        $table->string('name');
+        $table->string('token', 64)->unique();
+        $table->json('abilities')->nullable();
+        $table->string('guard')->nullable();
+        $table->string('provider')->nullable();
+        $table->timestamp('last_used_at')->nullable();
+        $table->timestamp('expires_at')->nullable();
+        $table->timestamp('revoked_at')->nullable();
+        $table->timestamps();
+    });
+
+    $user = AuthTokenThrottleTestUser::query()->create();
+    $newToken = $user->createToken('cli', ['orders:read']);
+
+    request()->headers->set('Authorization', 'Bearer '.$newToken->plainTextToken);
+
+    Auth::guard('auth-token')->user();
+
+    $firstLastUsedAt = $newToken->accessToken->fresh()->last_used_at;
+
+    Auth::forgetGuards();
+    Auth::guard('auth-token')->user();
+
+    expect($newToken->accessToken->fresh()->last_used_at?->equalTo($firstLastUsedAt))->toBeTrue();
+});
+
 it('requires every ability for abilities middleware', function () {
     $request = Request::create('/');
     $request->setUserResolver(fn () => new class
@@ -119,4 +156,13 @@ class AuthTokenTestUser extends Tokenable
     protected $guarded = [];
 
     protected $table = 'auth_token_test_users';
+}
+
+class AuthTokenThrottleTestUser extends Tokenable
+{
+    public $timestamps = false;
+
+    protected $guarded = [];
+
+    protected $table = 'auth_token_throttle_test_users';
 }

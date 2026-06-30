@@ -115,6 +115,15 @@ it('rejects access tokens issued for a different configured provider', function 
     expect(app(AuthToken::class)->findToken($pair->plainTextAccessToken()))->toBeNull();
 });
 
+it('rejects access tokens for revoked sessions', function () {
+    $user = AuthTokenRefreshTestUser::query()->create();
+    $pair = $user->createTokenPair('iphone', ['orders:read']);
+
+    $pair->session->forceFill(['revoked_at' => now()])->save();
+
+    expect(app(AuthToken::class)->findToken($pair->plainTextAccessToken()))->toBeNull();
+});
+
 it('revokes refresh token family when a rotated refresh token is reused', function () {
     $user = AuthTokenRefreshTestUser::query()->create();
     $pair = $user->createTokenPair('iphone', ['orders:read']);

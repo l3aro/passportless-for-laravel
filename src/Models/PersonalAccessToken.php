@@ -2,8 +2,8 @@
 
 namespace l3aro\AuthToken\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
@@ -12,6 +12,7 @@ use l3aro\AuthToken\Contracts\HasAbilities;
 /**
  * @property array<int, string>|null $abilities
  * @property Carbon|null $expires_at
+ * @property Carbon|null $last_used_at
  * @property Carbon|null $revoked_at
  * @property string $token
  */
