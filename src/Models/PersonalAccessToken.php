@@ -2,6 +2,7 @@
 
 namespace l3aro\AuthToken\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -46,7 +47,8 @@ class PersonalAccessToken extends Model implements HasAbilities
 
     public function can(string $ability): bool
     {
-        return in_array('*', $this->abilities ?? [], true)
+        return (config('auth-token-for-laravel.abilities.wildcard_enabled', true)
+                && in_array('*', $this->abilities ?? [], true))
             || in_array($ability, $this->abilities ?? [], true);
     }
 

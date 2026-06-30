@@ -25,6 +25,15 @@ it('allows wildcard token abilities', function () {
     expect($token->can('orders:delete'))->toBeTrue();
 });
 
+it('can disable wildcard token abilities', function () {
+    config()->set('auth-token-for-laravel.abilities.wildcard_enabled', false);
+
+    $token = new PersonalAccessToken(['abilities' => ['*']]);
+
+    expect($token->can('orders:delete'))->toBeFalse()
+        ->and($token->can('*'))->toBeTrue();
+});
+
 it('checks abilities through the tokenable model trait', function () {
     $token = new PersonalAccessToken(['abilities' => ['orders:read']]);
 
