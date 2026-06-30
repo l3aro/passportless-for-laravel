@@ -45,7 +45,12 @@ class AuthTokenServiceProvider extends PackageServiceProvider
                 return null;
             }
 
-            $accessToken->forceFill(['last_used_at' => now()])->save();
+            $lastUsedAt = $accessToken->last_used_at;
+            $updateInterval = (int) config('auth-token-for-laravel.access_token.last_used_update_interval', 60);
+
+            if ($lastUsedAt === null || $lastUsedAt->addSeconds($updateInterval)->isPast()) {
+                $accessToken->forceFill(['last_used_at' => now()])->save();
+            }
 
             return $tokenable->withAccessToken($accessToken);
         });

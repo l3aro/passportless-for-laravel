@@ -1,5 +1,7 @@
 <?php
 
+use l3aro\AuthToken\Enums\RefreshTokenReuseDetection;
+
 // config for l3aro/AuthToken
 return [
     'access_tokens_table' => 'auth_tokens',
@@ -11,14 +13,12 @@ return [
 
     'access_token' => [
         'expiration' => 15,
+        'last_used_update_interval' => 60,
     ],
 
     'refresh_token' => [
         'expiration' => 43200,
-        'reuse_detection' => env(
-            'AUTH_TOKEN_REUSE_DETECTION',
-            \l3aro\AuthToken\Enums\RefreshTokenReuseDetection::REVOKE_FAMILY
-        ),
+        'reuse_detection' => RefreshTokenReuseDetection::REVOKE_FAMILY,
     ],
 
     'abilities' => [
