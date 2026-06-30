@@ -97,6 +97,37 @@ it('preserves existing abilities when refresh caller does not pass abilities', f
         ->and($rotated->accessToken->accessToken->can('orders:write'))->toBeFalse();
 });
 
+it('rejects ability expansion during refresh', function () {
+    $user = AuthTokenRefreshTestUser::query()->create();
+    $pair = $user->createTokenPair('iphone', ['orders:read']);
+
+    $rotated = app(AuthToken::class)->refreshToken($pair->plainTextRefreshToken, ['orders:read', 'orders:write']);
+
+    expect($rotated)->toBeNull()
+        ->and($pair->refreshToken->fresh()->isRotated())->toBeFalse();
+});
+
+it('does not coerce malformed abilities during refresh', function () {
+    $user = AuthTokenRefreshTestUser::query()->create();
+    $pair = $user->createTokenPair('iphone', [1]);
+
+    $rotated = app(AuthToken::class)->refreshToken($pair->plainTextRefreshToken, ['1']);
+
+    expect($rotated)->toBeNull()
+        ->and($pair->refreshToken->fresh()->isRotated())->toBeFalse();
+});
+
+it('allows ability narrowing during refresh', function () {
+    $user = AuthTokenRefreshTestUser::query()->create();
+    $pair = $user->createTokenPair('iphone', ['orders:read', 'orders:write']);
+
+    $rotated = app(AuthToken::class)->refreshToken($pair->plainTextRefreshToken, ['orders:read']);
+
+    expect($rotated)->not->toBeNull()
+        ->and($rotated?->accessToken->accessToken->can('orders:read'))->toBeTrue()
+        ->and($rotated?->accessToken->accessToken->can('orders:write'))->toBeFalse();
+});
+
 it('rejects refresh tokens issued for a different configured guard', function () {
     $user = AuthTokenRefreshTestUser::query()->create();
     $pair = $user->createTokenPair('iphone', ['orders:read']);

@@ -108,6 +108,13 @@ class AuthToken
                 return null;
             }
 
+            $currentAbilities = $this->abilitiesForSession($session);
+            $nextAbilities = $abilities ?? $currentAbilities;
+
+            if (! $this->abilitiesAreSubset($nextAbilities, $currentAbilities)) {
+                return null;
+            }
+
             $lockedRefreshToken->forceFill(['rotated_at' => now()])->save();
 
             return $this->issueTokenPair(
@@ -115,7 +122,7 @@ class AuthToken
                 $session,
                 $lockedRefreshToken->family_id,
                 (string) $session->getAttribute('name'),
-                $abilities ?? $this->abilitiesForSession($session),
+                $nextAbilities,
             );
         });
     }
@@ -264,5 +271,25 @@ class AuthToken
             : (RefreshTokenReuseDetection::tryFrom((string) $value) ?? RefreshTokenReuseDetection::IGNORE);
 
         return $detection === RefreshTokenReuseDetection::REVOKE_FAMILY;
+    }
+
+    /**
+     * @param  array<int, string>  $requested
+     * @param  array<int, string>  $granted
+     */
+    protected function abilitiesAreSubset(array $requested, array $granted): bool
+    {
+        if (config('auth-token-for-laravel.abilities.wildcard_enabled', true)
+            && in_array('*', $granted, true)) {
+            return true;
+        }
+
+        foreach ($requested as $ability) {
+            if (! in_array($ability, $granted, true)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
