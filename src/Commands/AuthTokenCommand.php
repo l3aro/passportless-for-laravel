@@ -5,6 +5,7 @@ namespace l3aro\AuthToken\Commands;
 use Illuminate\Console\Command;
 use l3aro\AuthToken\Models\PersonalAccessToken;
 use l3aro\AuthToken\Models\RefreshToken;
+use l3aro\AuthToken\Models\TokenSession;
 
 class AuthTokenCommand extends Command
 {
@@ -31,7 +32,17 @@ class AuthTokenCommand extends Command
             })
             ->delete();
 
-        $this->info("Pruned {$accessTokens} access tokens and {$refreshTokens} refresh tokens.");
+        $sessions = 0;
+
+        TokenSession::query()
+            ->whereDoesntHave('accessTokens')
+            ->whereDoesntHave('refreshTokens')
+            ->select('id')
+            ->chunkById(1000, function ($orphanedSessions) use (&$sessions): void {
+                $sessions += TokenSession::query()->whereKey($orphanedSessions->modelKeys())->delete();
+            });
+
+        $this->info("Pruned {$accessTokens} access tokens, {$refreshTokens} refresh tokens, and {$sessions} sessions.");
 
         return self::SUCCESS;
     }

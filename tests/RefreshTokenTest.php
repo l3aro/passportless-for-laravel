@@ -195,6 +195,21 @@ it('returns null for malformed plainText tokens (parse failures in findToken/fin
         ->and($auth->findRefreshToken('123|'))->toBeNull();
 });
 
+it('prunes orphaned token sessions', function () {
+    $user = AuthTokenRefreshTestUser::query()->create();
+    $expiredPair = $user->createTokenPair('expired', ['orders:read']);
+    $activePair = $user->createTokenPair('active', ['orders:read']);
+
+    $expiredPair->accessToken->accessToken->forceFill(['expires_at' => now()->subHour()])->save();
+    $expiredPair->refreshToken->forceFill(['expires_at' => now()->subHour()])->save();
+
+    $this->artisan('auth-token-for-laravel:prune', ['--hours' => 0])
+        ->assertSuccessful();
+
+    expect($expiredPair->session->fresh())->toBeNull()
+        ->and($activePair->session->fresh())->not->toBeNull();
+});
+
 class AuthTokenRefreshTestUser extends Tokenable
 {
     public $timestamps = false;
