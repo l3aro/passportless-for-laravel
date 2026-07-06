@@ -2,7 +2,6 @@
 
 use l3aro\Passportless\Enums\RefreshTokenReuseDetection;
 
-// Configuration for l3aro/Passportless
 return [
     'access_tokens_table' => 'passportless_tokens',
     'refresh_tokens_table' => 'passportless_refresh_tokens',

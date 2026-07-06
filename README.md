@@ -1,9 +1,9 @@
 # Passportless
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/l3aro/passportless.svg?style=flat-square)](https://packagist.org/packages/l3aro/passportless)
-[![GitHub Tests Action Status](https://github.com/l3aro/passportless/actions/workflows/run-tests.yml/badge.svg)](https://github.com/l3aro/passportless/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://github.com/l3aro/passportless/actions/workflows/fix-php-code-style-issues.yml/badge.svg)](https://github.com/l3aro/passportless/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/l3aro/passportless.svg?style=flat-square)](https://packagist.org/packages/l3aro/passportless)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/l3aro/passportless-for-laravel.svg?style=flat-square)](https://packagist.org/packages/l3aro/passportless-for-laravel)
+[![GitHub Tests Action Status](https://github.com/l3aro/passportless-for-laravel/actions/workflows/run-tests.yml/badge.svg)](https://github.com/l3aro/passportless-for-laravel/actions?query=workflow%3Arun-tests+branch%3Amain)
+[![GitHub Code Style Action Status](https://github.com/l3aro/passportless-for-laravel/actions/workflows/fix-php-code-style-issues.yml/badge.svg)](https://github.com/l3aro/passportless-for-laravel/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
+[![Total Downloads](https://img.shields.io/packagist/dt/l3aro/passportless-for-laravel.svg?style=flat-square)](https://packagist.org/packages/l3aro/passportless-for-laravel)
 
 Passportless provides first-party API tokens with optional abilities. Abilities are simple permission strings attached to access tokens; they are not OAuth scopes and do not add OAuth2 grant flows.
 
@@ -12,7 +12,7 @@ Passportless provides first-party API tokens with optional abilities. Abilities 
 You can install the package via composer:
 
 ```bash
-composer require l3aro/passportless
+composer require l3aro/passportless-for-laravel
 ```
 
 You can publish and run the migrations with:
@@ -39,12 +39,6 @@ return [
     'provider' => null,
     // ...
 ];
-```
-
-Optionally, you can publish the views using
-
-```bash
-php artisan vendor:publish --tag="passportless-views"
 ```
 
 ## Usage
