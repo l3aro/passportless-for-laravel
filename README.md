@@ -96,6 +96,31 @@ Route::post('/orders', OrdersController::class)
     ->middleware(['auth:passportless', 'ability:orders:write,orders:admin']);
 ```
 
+## Best practice: browser authentication with HTTP-only cookies
+
+For browser clients, issue both the access token and refresh token as HTTP-only cookies with `PassportlessCookieManager`. Do not expose either token in JSON responses, JavaScript-readable cookies, local storage, or session storage. JavaScript should only receive non-secret response data and, when needed, a separate CSRF value.
+
+Use a short-lived access cookie for normal API requests and a refresh cookie for a dedicated refresh endpoint. On login, create a token pair, attach both cookies to the response, and send a CSRF cookie or response value for double-submit CSRF protection:
+
+```php
+use Illuminate\Support\Str;
+use l3aro\Passportless\PassportlessCookieManager;
+
+Route::post('/auth/login', function (PassportlessCookieManager $cookies) {
+    $pair = auth()->user()->createTokenPair('browser');
+    $csrf = Str::random(40);
+
+    return response()->json(['csrf_token' => $csrf])
+        ->withCookie($cookies->createAccessCookie($pair->plainTextAccessToken()))
+        ->withCookie($cookies->createRefreshCookie($pair->plainTextRefreshToken()))
+        ->withCookie($cookies->createCsrfCookie($csrf));
+});
+```
+
+Read the access token from the configured access cookie inside host-owned authentication middleware or routes, then let `auth:passportless` protect API routes. When the access token expires, call a refresh route that reads only the refresh cookie, rotates the token pair, returns replacement access and refresh cookies, and rejects reused refresh tokens.
+
+Keep access and refresh cookies `HttpOnly`, use `Secure` cookies over HTTPS, and choose the narrowest practical cookie path and domain. Same-origin browser clients can use Fetch `credentials: 'same-origin'`; cross-origin clients must use `credentials: 'include'`, explicit CORS origins, credential support, CSRF protection, and `SameSite=None` with `Secure=true` when cookies are cross-site.
+
 ## Browser cookies
 
 Passportless provides `l3aro\Passportless\PassportlessCookieManager` for host-owned browser routes that want access, refresh, and CSRF cookies. The manager is container-resolved as a singleton and returns Symfony `Cookie` objects only; it does not register routes, mutate responses, or queue cookies.
@@ -109,7 +134,7 @@ Route::post('/auth/login', function (PassportlessCookieManager $cookies) {
 
     return response()->json(['csrf_token' => $csrf])
         ->withCookie($cookies->createAccessCookie($pair->plainTextAccessToken()))
-        ->withCookie($cookies->createRefreshCookie($pair->plainTextRefreshToken))
+        ->withCookie($cookies->createRefreshCookie($pair->plainTextRefreshToken()))
         ->withCookie($cookies->createCsrfCookie($csrf));
 });
 ```
