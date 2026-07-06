@@ -1,3 +1,3 @@
 # Changelog
 
-All notable changes to `auth-token-for-laravel` will be documented in this file.
+All notable changes to Passportless will be documented in this file.

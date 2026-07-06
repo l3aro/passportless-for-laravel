@@ -1,39 +1,39 @@
 <?php
 
-namespace l3aro\AuthToken;
+namespace l3aro\Passportless;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
-use l3aro\AuthToken\Commands\PruneStaleCommand;
-use l3aro\AuthToken\Http\Middleware\CheckAbilities;
-use l3aro\AuthToken\Http\Middleware\CheckForAnyAbility;
+use l3aro\Passportless\Commands\PruneStaleCommand;
+use l3aro\Passportless\Http\Middleware\CheckAbilities;
+use l3aro\Passportless\Http\Middleware\CheckForAnyAbility;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
-class AuthTokenServiceProvider extends PackageServiceProvider
+class PassportlessServiceProvider extends PackageServiceProvider
 {
     public function packageRegistered(): void
     {
-        $this->app->singleton(AuthToken::class);
+        $this->app->singleton(Passportless::class);
     }
 
     public function packageBooted(): void
     {
-        config()->set('auth.guards.auth-token.driver', config('auth.guards.auth-token.driver', 'auth-token'));
+        config()->set('auth.guards.passportless.driver', config('auth.guards.passportless.driver', 'passportless'));
 
         $router = $this->app['router'];
 
         $router->aliasMiddleware('abilities', CheckAbilities::class);
         $router->aliasMiddleware('ability', CheckForAnyAbility::class);
 
-        Auth::viaRequest('auth-token', function ($request) {
+        Auth::viaRequest('passportless', function ($request) {
             $plainTextToken = $request->bearerToken();
 
             if (! $plainTextToken) {
                 return null;
             }
 
-            $accessToken = $this->app->make(AuthToken::class)->findToken($plainTextToken);
+            $accessToken = $this->app->make(Passportless::class)->findToken($plainTextToken);
 
             if (! $accessToken) {
                 return null;
@@ -46,7 +46,7 @@ class AuthTokenServiceProvider extends PackageServiceProvider
             }
 
             $lastUsedAt = $accessToken->last_used_at;
-            $updateInterval = (int) config('auth-token-for-laravel.access_token.last_used_update_interval', 60);
+            $updateInterval = (int) config('passportless.access_token.last_used_update_interval', 60);
 
             if ($lastUsedAt === null || $lastUsedAt->copy()->addSeconds($updateInterval)->isPast()) {
                 $accessToken->recordUsage(now());
@@ -64,10 +64,10 @@ class AuthTokenServiceProvider extends PackageServiceProvider
          * More info: https://github.com/spatie/laravel-package-tools
          */
         $package
-            ->name('auth-token-for-laravel')
+            ->name('passportless')
             ->hasConfigFile()
             ->hasViews()
-            ->hasMigration('create_auth_token_for_laravel_table')
+            ->hasMigration('create_passportless_tables')
             ->hasCommand(PruneStaleCommand::class);
     }
 }

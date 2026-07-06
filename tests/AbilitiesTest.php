@@ -6,11 +6,11 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
-use l3aro\AuthToken\Concerns\HasAuthTokens;
-use l3aro\AuthToken\Http\Middleware\CheckAbilities;
-use l3aro\AuthToken\Http\Middleware\CheckForAnyAbility;
-use l3aro\AuthToken\Models\PersonalAccessToken;
-use l3aro\AuthToken\Models\Tokenable;
+use l3aro\Passportless\Concerns\HasPassportless;
+use l3aro\Passportless\Http\Middleware\CheckAbilities;
+use l3aro\Passportless\Http\Middleware\CheckForAnyAbility;
+use l3aro\Passportless\Models\PersonalAccessToken;
+use l3aro\Passportless\Models\Tokenable;
 
 it('allows exact token abilities', function () {
     $token = new PersonalAccessToken(['abilities' => ['orders:read']]);
@@ -26,7 +26,7 @@ it('allows wildcard token abilities', function () {
 });
 
 it('can disable wildcard token abilities', function () {
-    config()->set('auth-token-for-laravel.abilities.wildcard_enabled', false);
+    config()->set('passportless.abilities.wildcard_enabled', false);
 
     $token = new PersonalAccessToken(['abilities' => ['*']]);
 
@@ -39,7 +39,7 @@ it('checks abilities through the tokenable model trait', function () {
 
     $user = new class extends Model
     {
-        use HasAuthTokens;
+        use HasPassportless;
     };
 
     $user->withAccessToken($token);
@@ -53,7 +53,7 @@ it('authenticates bearer tokens through the package guard', function () {
         $table->id();
     });
 
-    Schema::create('auth_tokens', function (Blueprint $table) {
+    Schema::create('passportless_tokens', function (Blueprint $table) {
         $table->ulid('id')->primary();
         $table->morphs('tokenable');
         $table->uuid('session_id')->nullable();
@@ -68,16 +68,16 @@ it('authenticates bearer tokens through the package guard', function () {
         $table->timestamps();
     });
 
-    $user = AuthTokenTestUser::query()->create();
+    $user = PassportlessTestUser::query()->create();
     $newToken = $user->createToken('cli', ['orders:read']);
 
     request()->headers->set('Authorization', 'Bearer '.$newToken->plainTextToken);
 
-    $resolvedUser = Auth::guard('auth-token')->user();
+    $resolvedUser = Auth::guard('passportless')->user();
 
-    expect($resolvedUser)->toBeInstanceOf(AuthTokenTestUser::class);
+    expect($resolvedUser)->toBeInstanceOf(PassportlessTestUser::class);
 
-    if (! $resolvedUser instanceof AuthTokenTestUser) {
+    if (! $resolvedUser instanceof PassportlessTestUser) {
         $this->fail('Auth token guard did not resolve the tokenable user.');
     }
 
@@ -88,13 +88,13 @@ it('authenticates bearer tokens through the package guard', function () {
 });
 
 it('throttles last used updates on bearer token authentication', function () {
-    config()->set('auth-token-for-laravel.access_token.last_used_update_interval', 60);
+    config()->set('passportless.access_token.last_used_update_interval', 60);
 
     Schema::create('auth_token_throttle_test_users', function (Blueprint $table) {
         $table->id();
     });
 
-    Schema::create('auth_tokens', function (Blueprint $table) {
+    Schema::create('passportless_tokens', function (Blueprint $table) {
         $table->ulid('id')->primary();
         $table->morphs('tokenable');
         $table->uuid('session_id')->nullable();
@@ -109,25 +109,25 @@ it('throttles last used updates on bearer token authentication', function () {
         $table->timestamps();
     });
 
-    $user = AuthTokenThrottleTestUser::query()->create();
+    $user = PassportlessThrottleTestUser::query()->create();
     $newToken = $user->createToken('cli', ['orders:read']);
 
     request()->headers->set('Authorization', 'Bearer '.$newToken->plainTextToken);
 
-    Auth::guard('auth-token')->user();
+    Auth::guard('passportless')->user();
 
     $firstLastUsedAt = $newToken->accessToken->fresh()->last_used_at;
 
     Auth::forgetGuards();
-    Auth::guard('auth-token')->user();
+    Auth::guard('passportless')->user();
 
     expect($newToken->accessToken->fresh()->last_used_at?->equalTo($firstLastUsedAt))->toBeTrue();
 });
 
 it('atomically throttles concurrent last used updates', function () {
-    config()->set('auth-token-for-laravel.access_token.last_used_update_interval', 60);
+    config()->set('passportless.access_token.last_used_update_interval', 60);
 
-    Schema::create('auth_tokens', function (Blueprint $table) {
+    Schema::create('passportless_tokens', function (Blueprint $table) {
         $table->ulid('id')->primary();
         $table->morphs('tokenable');
         $table->uuid('session_id')->nullable();
@@ -143,7 +143,7 @@ it('atomically throttles concurrent last used updates', function () {
     });
 
     $token = PersonalAccessToken::query()->create([
-        'tokenable_type' => AuthTokenTestUser::class,
+        'tokenable_type' => PassportlessTestUser::class,
         'tokenable_id' => 1,
         'name' => 'cli',
         'token' => hash('sha256', 'token'),
@@ -216,7 +216,7 @@ it('rejects any ability middleware without required abilities', function () {
     (new CheckForAnyAbility)->handle($request, fn () => response('ok'));
 })->throws(AuthenticationException::class);
 
-class AuthTokenTestUser extends Tokenable
+class PassportlessTestUser extends Tokenable
 {
     public $timestamps = false;
 
@@ -225,7 +225,7 @@ class AuthTokenTestUser extends Tokenable
     protected $table = 'auth_token_test_users';
 }
 
-class AuthTokenThrottleTestUser extends Tokenable
+class PassportlessThrottleTestUser extends Tokenable
 {
     public $timestamps = false;
 

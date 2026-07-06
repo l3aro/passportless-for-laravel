@@ -1,5 +1,5 @@
 <?php
 
-use l3aro\AuthToken\Tests\TestCase;
+use l3aro\Passportless\Tests\TestCase;
 
 uses(TestCase::class)->in(__DIR__);

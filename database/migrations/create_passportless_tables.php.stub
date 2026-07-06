@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create(config('auth-token-for-laravel.sessions_table', 'auth_token_sessions'), function (Blueprint $table) {
+        Schema::create(config('passportless.sessions_table', 'passportless_token_sessions'), function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->morphs('tokenable');
             $table->string('name');
@@ -21,7 +21,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create(config('auth-token-for-laravel.access_tokens_table', 'auth_tokens'), function (Blueprint $table) {
+        Schema::create(config('passportless.access_tokens_table', 'passportless_tokens'), function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->morphs('tokenable');
             $table->uuid('session_id')->nullable();
@@ -41,7 +41,7 @@ return new class extends Migration
             $table->index('expires_at');
         });
 
-        Schema::create(config('auth-token-for-laravel.refresh_tokens_table', 'auth_refresh_tokens'), function (Blueprint $table) {
+        Schema::create(config('passportless.refresh_tokens_table', 'passportless_refresh_tokens'), function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->morphs('tokenable');
             $table->uuid('session_id');
@@ -63,8 +63,8 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists(config('auth-token-for-laravel.refresh_tokens_table', 'auth_refresh_tokens'));
-        Schema::dropIfExists(config('auth-token-for-laravel.access_tokens_table', 'auth_tokens'));
-        Schema::dropIfExists(config('auth-token-for-laravel.sessions_table', 'auth_token_sessions'));
+        Schema::dropIfExists(config('passportless.refresh_tokens_table', 'passportless_refresh_tokens'));
+        Schema::dropIfExists(config('passportless.access_tokens_table', 'passportless_tokens'));
+        Schema::dropIfExists(config('passportless.sessions_table', 'passportless_token_sessions'));
     }
 };

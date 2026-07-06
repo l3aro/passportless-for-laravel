@@ -1,19 +1,19 @@
 <?php
 
-namespace l3aro\AuthToken;
+namespace l3aro\Passportless;
 
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use l3aro\AuthToken\Enums\RefreshTokenReuseDetection;
-use l3aro\AuthToken\Models\PersonalAccessToken;
-use l3aro\AuthToken\Models\RefreshToken;
-use l3aro\AuthToken\Models\TokenSession;
-use l3aro\AuthToken\Support\NewAccessToken;
-use l3aro\AuthToken\Support\NewTokenPair;
+use l3aro\Passportless\Enums\RefreshTokenReuseDetection;
+use l3aro\Passportless\Models\PersonalAccessToken;
+use l3aro\Passportless\Models\RefreshToken;
+use l3aro\Passportless\Models\TokenSession;
+use l3aro\Passportless\Support\NewAccessToken;
+use l3aro\Passportless\Support\NewTokenPair;
 
-class AuthToken
+class Passportless
 {
     /**
      * @param  array<int, string>  $abilities
@@ -27,9 +27,9 @@ class AuthToken
             'token' => hash('sha256', $plainTextToken),
             'abilities' => $abilities,
             'session_id' => $sessionId,
-            'guard' => config('auth-token-for-laravel.guard'),
-            'provider' => config('auth-token-for-laravel.provider'),
-            'expires_at' => $expiresAt ?? now()->addMinutes((int) config('auth-token-for-laravel.access_token.expiration', 15)),
+            'guard' => config('passportless.guard'),
+            'provider' => config('passportless.provider'),
+            'expires_at' => $expiresAt ?? now()->addMinutes((int) config('passportless.access_token.expiration', 15)),
         ]);
 
         return new NewAccessToken($token, $token->getKey().'|'.$plainTextToken);
@@ -43,8 +43,8 @@ class AuthToken
         return DB::transaction(function () use ($tokenable, $name, $abilities): NewTokenPair {
             $session = $tokenable->morphMany(TokenSession::class, 'tokenable')->create([
                 'name' => $name,
-                'guard' => config('auth-token-for-laravel.guard'),
-                'provider' => config('auth-token-for-laravel.provider'),
+                'guard' => config('passportless.guard'),
+                'provider' => config('passportless.provider'),
             ]);
 
             return $this->issueTokenPair($tokenable, $session, (string) Str::uuid(), $name, $abilities);
@@ -188,7 +188,7 @@ class AuthToken
      */
     private function parsePlainTextToken(string $plainTextToken): ?array
     {
-        if (strlen($plainTextToken) > (int) config('auth-token-for-laravel.token.max_length', 120)) {
+        if (strlen($plainTextToken) > (int) config('passportless.token.max_length', 120)) {
             return null;
         }
 
@@ -218,9 +218,9 @@ class AuthToken
             'session_id' => $session->getKey(),
             'family_id' => $familyId,
             'token' => hash('sha256', $plainTextRefreshToken),
-            'guard' => config('auth-token-for-laravel.guard'),
-            'provider' => config('auth-token-for-laravel.provider'),
-            'expires_at' => now()->addMinutes((int) config('auth-token-for-laravel.refresh_token.expiration', 43200)),
+            'guard' => config('passportless.guard'),
+            'provider' => config('passportless.provider'),
+            'expires_at' => now()->addMinutes((int) config('passportless.refresh_token.expiration', 43200)),
         ]);
 
         $session->forceFill(['last_used_at' => now()])->save();
@@ -238,8 +238,8 @@ class AuthToken
 
     protected function matchesConfiguredContext(Model $model): bool
     {
-        return $model->getAttribute('guard') === config('auth-token-for-laravel.guard')
-            && $model->getAttribute('provider') === config('auth-token-for-laravel.provider');
+        return $model->getAttribute('guard') === config('passportless.guard')
+            && $model->getAttribute('provider') === config('passportless.provider');
     }
 
     /**
@@ -252,7 +252,7 @@ class AuthToken
             ->first();
 
         if (! $accessToken instanceof PersonalAccessToken) {
-            return config('auth-token-for-laravel.abilities.default', ['*']);
+            return config('passportless.abilities.default', ['*']);
         }
 
         return $accessToken->abilities ?? [];
@@ -264,7 +264,7 @@ class AuthToken
             return false;
         }
 
-        $value = config('auth-token-for-laravel.refresh_token.reuse_detection', RefreshTokenReuseDetection::REVOKE_FAMILY);
+        $value = config('passportless.refresh_token.reuse_detection', RefreshTokenReuseDetection::REVOKE_FAMILY);
 
         $detection = $value instanceof RefreshTokenReuseDetection
             ? $value
@@ -279,7 +279,7 @@ class AuthToken
      */
     protected function abilitiesAreSubset(array $requested, array $granted): bool
     {
-        if (config('auth-token-for-laravel.abilities.wildcard_enabled', true)
+        if (config('passportless.abilities.wildcard_enabled', true)
             && in_array('*', $granted, true)) {
             return true;
         }

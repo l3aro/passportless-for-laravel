@@ -1,14 +1,14 @@
 <?php
 
-use l3aro\AuthToken\Enums\RefreshTokenReuseDetection;
+use l3aro\Passportless\Enums\RefreshTokenReuseDetection;
 
-// config for l3aro/AuthToken
+// Configuration for l3aro/Passportless
 return [
-    'access_tokens_table' => 'auth_tokens',
-    'refresh_tokens_table' => 'auth_refresh_tokens',
-    'sessions_table' => 'auth_token_sessions',
+    'access_tokens_table' => 'passportless_tokens',
+    'refresh_tokens_table' => 'passportless_refresh_tokens',
+    'sessions_table' => 'passportless_token_sessions',
 
-    'guard' => 'auth-token',
+    'guard' => 'passportless',
     'provider' => null,
 
     'access_token' => [

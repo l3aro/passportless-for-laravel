@@ -1,6 +1,6 @@
 <?php
 
-namespace l3aro\AuthToken\Enums;
+namespace l3aro\Passportless\Enums;
 
 enum RefreshTokenReuseDetection: string
 {

@@ -1,6 +1,6 @@
 <?php
 
-namespace l3aro\AuthToken\Http\Middleware;
+namespace l3aro\Passportless\Http\Middleware;
 
 use Closure;
 use Illuminate\Auth\AuthenticationException;

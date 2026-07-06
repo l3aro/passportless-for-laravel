@@ -1,12 +1,12 @@
 {
-    "name": "l3aro/auth-token-for-laravel",
+    "name": "l3aro/passportless-for-laravel",
     "description": "Secure token-based authentication for first-party Laravel APIs",
     "keywords": [
         "l3aro",
         "laravel",
-        "auth-token-for-laravel"
+        "passportless"
     ],
-    "homepage": "https://github.com/l3aro/auth-token-for-laravel",
+    "homepage": "https://github.com/l3aro/passportless-for-laravel",
     "license": "MIT",
     "authors": [
         {
@@ -34,13 +34,12 @@
     },
     "autoload": {
         "psr-4": {
-            "l3aro\\AuthToken\\": "src/",
-            "l3aro\\AuthToken\\Database\\Factories\\": "database/factories/"
+            "l3aro\\Passportless\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "l3aro\\AuthToken\\Tests\\": "tests/",
+            "l3aro\\Passportless\\Tests\\": "tests/",
             "Workbench\\App\\": "workbench/app/"
         }
     },
@@ -62,10 +61,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "l3aro\\AuthToken\\AuthTokenServiceProvider"
+                "l3aro\\Passportless\\PassportlessServiceProvider"
             ],
             "aliases": {
-                "AuthToken": "l3aro\\AuthToken\\Facades\\AuthToken"
+                "Passportless": "l3aro\\Passportless\\Facades\\Passportless"
             }
         }
     },

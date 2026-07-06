@@ -1,8 +1,8 @@
 <?php
 
-namespace l3aro\AuthToken\Support;
+namespace l3aro\Passportless\Support;
 
-use l3aro\AuthToken\Models\PersonalAccessToken;
+use l3aro\Passportless\Models\PersonalAccessToken;
 
 class NewAccessToken
 {

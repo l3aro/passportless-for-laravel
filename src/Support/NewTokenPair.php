@@ -1,9 +1,9 @@
 <?php
 
-namespace l3aro\AuthToken\Support;
+namespace l3aro\Passportless\Support;
 
-use l3aro\AuthToken\Models\RefreshToken;
-use l3aro\AuthToken\Models\TokenSession;
+use l3aro\Passportless\Models\RefreshToken;
+use l3aro\Passportless\Models\TokenSession;
 
 class NewTokenPair
 {

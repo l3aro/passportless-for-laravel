@@ -1,9 +1,8 @@
 <?php
 
-namespace l3aro\AuthToken\Tests;
+namespace l3aro\Passportless\Tests;
 
-use Illuminate\Database\Eloquent\Factories\Factory;
-use l3aro\AuthToken\AuthTokenServiceProvider;
+use l3aro\Passportless\PassportlessServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 class TestCase extends Orchestra
@@ -11,16 +10,12 @@ class TestCase extends Orchestra
     protected function setUp(): void
     {
         parent::setUp();
-
-        Factory::guessFactoryNamesUsing(
-            fn (string $modelName) => 'l3aro\\AuthToken\\Database\\Factories\\'.class_basename($modelName).'Factory'
-        );
     }
 
     protected function getPackageProviders($app)
     {
         return [
-            AuthTokenServiceProvider::class,
+            PassportlessServiceProvider::class,
         ];
     }
 

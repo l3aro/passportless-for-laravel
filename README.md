@@ -1,63 +1,60 @@
-# Secure token-based authentication for first-party Laravel APIs
+# Passportless
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/l3aro/auth-token-for-laravel.svg?style=flat-square)](https://packagist.org/packages/l3aro/auth-token-for-laravel)
-[![GitHub Tests Action Status](https://github.com/spatie/package-auth-token-for-laravel-laravel/actions/workflows/run-tests.yml/badge.svg)](https://github.com/l3aro/auth-token-for-laravel/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://github.com/spatie/package-auth-token-for-laravel-laravel/actions/workflows/fix-php-code-style-issues.yml/badge.svg)](https://github.com/l3aro/auth-token-for-laravel/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/l3aro/auth-token-for-laravel.svg?style=flat-square)](https://packagist.org/packages/l3aro/auth-token-for-laravel)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/l3aro/passportless.svg?style=flat-square)](https://packagist.org/packages/l3aro/passportless)
+[![GitHub Tests Action Status](https://github.com/l3aro/passportless/actions/workflows/run-tests.yml/badge.svg)](https://github.com/l3aro/passportless/actions?query=workflow%3Arun-tests+branch%3Amain)
+[![GitHub Code Style Action Status](https://github.com/l3aro/passportless/actions/workflows/fix-php-code-style-issues.yml/badge.svg)](https://github.com/l3aro/passportless/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
+[![Total Downloads](https://img.shields.io/packagist/dt/l3aro/passportless.svg?style=flat-square)](https://packagist.org/packages/l3aro/passportless)
 
-Auth Token for Laravel provides first-party API tokens with optional abilities. Abilities are simple permission strings attached to access tokens; they are not OAuth scopes and do not add OAuth2 grant flows.
-
-## Support us
-
-[<img src="https://github-ads.s3.eu-central-1.amazonaws.com/auth-token-for-laravel.jpg?t=1" width="419px" />](https://spatie.be/github-ad-click/auth-token-for-laravel)
-
-We invest a lot of resources into creating [best in class open source packages](https://spatie.be/open-source). You can support us by [buying one of our paid products](https://spatie.be/open-source/support-us).
-
-We highly appreciate you sending us a postcard from your hometown, mentioning which of our package(s) you are using. You'll find our address on [our contact page](https://spatie.be/about-us). We publish all received postcards on [our virtual postcard wall](https://spatie.be/open-source/postcards).
+Passportless provides first-party API tokens with optional abilities. Abilities are simple permission strings attached to access tokens; they are not OAuth scopes and do not add OAuth2 grant flows.
 
 ## Installation
 
 You can install the package via composer:
 
 ```bash
-composer require l3aro/auth-token-for-laravel
+composer require l3aro/passportless
 ```
 
 You can publish and run the migrations with:
 
 ```bash
-php artisan vendor:publish --tag="auth-token-for-laravel-migrations"
+php artisan vendor:publish --tag="passportless-migrations"
 php artisan migrate
 ```
 
 You can publish the config file with:
 
 ```bash
-php artisan vendor:publish --tag="auth-token-for-laravel-config"
+php artisan vendor:publish --tag="passportless-config"
 ```
 
-This is the contents of the published config file:
+The published `config/passportless.php` file contains token storage, guard, expiration, reuse detection, ability, and token parsing settings:
 
 ```php
 return [
-    'table' => 'auth_tokens',
+    'access_tokens_table' => 'passportless_tokens',
+    'refresh_tokens_table' => 'passportless_refresh_tokens',
+    'sessions_table' => 'passportless_token_sessions',
+    'guard' => 'passportless',
+    'provider' => null,
+    // ...
 ];
 ```
 
 Optionally, you can publish the views using
 
 ```bash
-php artisan vendor:publish --tag="auth-token-for-laravel-views"
+php artisan vendor:publish --tag="passportless-views"
 ```
 
 ## Usage
 
 ```php
-use l3aro\AuthToken\Concerns\HasAuthTokens;
+use l3aro\Passportless\Concerns\HasPassportless;
 
 class User extends Authenticatable
 {
-    use HasAuthTokens;
+    use HasPassportless;
 }
 
 $token = $user->createToken('iphone', ['orders:read', 'orders:write']);
@@ -83,10 +80,10 @@ Protect routes with middleware aliases registered by the package:
 
 ```php
 Route::get('/orders', OrdersController::class)
-    ->middleware(['auth:auth-token', 'abilities:orders:read']);
+    ->middleware(['auth:passportless', 'abilities:orders:read']);
 
 Route::post('/orders', OrdersController::class)
-    ->middleware(['auth:auth-token', 'ability:orders:write,orders:admin']);
+    ->middleware(['auth:passportless', 'ability:orders:write,orders:admin']);
 ```
 
 ## Testing

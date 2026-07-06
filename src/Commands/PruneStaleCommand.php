@@ -1,17 +1,17 @@
 <?php
 
-namespace l3aro\AuthToken\Commands;
+namespace l3aro\Passportless\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use l3aro\AuthToken\Models\PersonalAccessToken;
-use l3aro\AuthToken\Models\RefreshToken;
-use l3aro\AuthToken\Models\TokenSession;
+use l3aro\Passportless\Models\PersonalAccessToken;
+use l3aro\Passportless\Models\RefreshToken;
+use l3aro\Passportless\Models\TokenSession;
 
 class PruneStaleCommand extends Command
 {
-    public $signature = 'auth-token-for-laravel:prune-stale {--hours=24 : Prune tokens expired or revoked for at least this many hours}';
+    public $signature = 'passportless:prune-stale {--hours=24 : Prune tokens expired or revoked for at least this many hours}';
 
     public $description = 'Prune expired and revoked auth tokens';
 

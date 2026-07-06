@@ -1,6 +1,6 @@
 <?php
 
-namespace l3aro\AuthToken\Contracts;
+namespace l3aro\Passportless\Contracts;
 
 interface HasAbilities
 {

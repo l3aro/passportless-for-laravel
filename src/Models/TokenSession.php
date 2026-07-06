@@ -1,6 +1,6 @@
 <?php
 
-namespace l3aro\AuthToken\Models;
+namespace l3aro\Passportless\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -36,7 +36,7 @@ class TokenSession extends Model
 
     public function getTable(): string
     {
-        return config('auth-token-for-laravel.sessions_table', 'auth_token_sessions');
+        return config('passportless.sessions_table', 'passportless_token_sessions');
     }
 
     public function tokenable(): MorphTo

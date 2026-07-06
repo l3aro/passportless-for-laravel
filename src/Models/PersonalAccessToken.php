@@ -1,6 +1,6 @@
 <?php
 
-namespace l3aro\AuthToken\Models;
+namespace l3aro\Passportless\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
-use l3aro\AuthToken\Contracts\HasAbilities;
+use l3aro\Passportless\Contracts\HasAbilities;
 
 /**
  * @property array<int, string>|null $abilities
@@ -32,7 +32,7 @@ class PersonalAccessToken extends Model implements HasAbilities
 
     public function getTable(): string
     {
-        return config('auth-token-for-laravel.access_tokens_table', 'auth_tokens');
+        return config('passportless.access_tokens_table', 'passportless_tokens');
     }
 
     public function tokenable(): MorphTo
@@ -47,7 +47,7 @@ class PersonalAccessToken extends Model implements HasAbilities
 
     public function can(string $ability): bool
     {
-        return (config('auth-token-for-laravel.abilities.wildcard_enabled', true)
+        return (config('passportless.abilities.wildcard_enabled', true)
                 && in_array('*', $this->abilities ?? [], true))
             || in_array($ability, $this->abilities ?? [], true);
     }
@@ -60,7 +60,7 @@ class PersonalAccessToken extends Model implements HasAbilities
     public function recordUsage(Carbon $usedAt): bool
     {
         $threshold = $usedAt->copy()->subSeconds(
-            max(0, (int) config('auth-token-for-laravel.access_token.last_used_update_interval', 60))
+            max(0, (int) config('passportless.access_token.last_used_update_interval', 60))
         );
 
         $updated = static::query()

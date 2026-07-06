@@ -1,6 +1,6 @@
 <?php
 
-namespace l3aro\AuthToken\Models;
+namespace l3aro\Passportless\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -29,7 +29,7 @@ class RefreshToken extends Model
 
     public function getTable(): string
     {
-        return config('auth-token-for-laravel.refresh_tokens_table', 'auth_refresh_tokens');
+        return config('passportless.refresh_tokens_table', 'passportless_refresh_tokens');
     }
 
     public function tokenable(): MorphTo

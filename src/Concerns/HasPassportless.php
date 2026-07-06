@@ -1,20 +1,20 @@
 <?php
 
-namespace l3aro\AuthToken\Concerns;
+namespace l3aro\Passportless\Concerns;
 
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use l3aro\AuthToken\AuthToken;
-use l3aro\AuthToken\Models\PersonalAccessToken;
-use l3aro\AuthToken\Models\TokenSession;
-use l3aro\AuthToken\Support\NewAccessToken;
-use l3aro\AuthToken\Support\NewTokenPair;
+use l3aro\Passportless\Passportless;
+use l3aro\Passportless\Models\PersonalAccessToken;
+use l3aro\Passportless\Models\TokenSession;
+use l3aro\Passportless\Support\NewAccessToken;
+use l3aro\Passportless\Support\NewTokenPair;
 
 /**
  * @mixin Model
  */
-trait HasAuthTokens
+trait HasPassportless
 {
     protected ?PersonalAccessToken $accessToken = null;
 
@@ -28,7 +28,7 @@ trait HasAuthTokens
      */
     public function createToken(string $name, array $abilities = ['*'], ?DateTimeInterface $expiresAt = null): NewAccessToken
     {
-        return app(AuthToken::class)->createToken($this, $name, $abilities, $expiresAt);
+        return app(Passportless::class)->createToken($this, $name, $abilities, $expiresAt);
     }
 
     /**
@@ -36,7 +36,7 @@ trait HasAuthTokens
      */
     public function createTokenPair(string $name, array $abilities = ['*']): NewTokenPair
     {
-        return app(AuthToken::class)->createTokenPair($this, $name, $abilities);
+        return app(Passportless::class)->createTokenPair($this, $name, $abilities);
     }
 
     public function tokenSessions(): MorphMany
