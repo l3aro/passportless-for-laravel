@@ -186,7 +186,7 @@ class Passportless
     /**
      * @return array{id: string, token: string}|null
      */
-    private function parsePlainTextToken(string $plainTextToken): ?array
+    protected function parsePlainTextToken(string $plainTextToken): ?array
     {
         if (strlen($plainTextToken) > (int) config('passportless.token.max_length', 120)) {
             return null;

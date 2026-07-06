@@ -41,7 +41,7 @@ class PruneStaleCommand extends Command
     /**
      * @param  class-string<Model>  $modelClass
      */
-    private function deleteExpiredOrRevokedInChunks(string $modelClass, mixed $threshold): int
+    protected function deleteExpiredOrRevokedInChunks(string $modelClass, mixed $threshold): int
     {
         $deleted = 0;
 
