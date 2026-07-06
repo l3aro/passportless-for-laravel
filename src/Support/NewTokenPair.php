@@ -11,11 +11,16 @@ class NewTokenPair
         public NewAccessToken $accessToken,
         public RefreshToken $refreshToken,
         public TokenSession $session,
-        public string $plainTextRefreshToken,
+        protected string $plainTextRefreshToken,
     ) {}
 
     public function plainTextAccessToken(): string
     {
         return $this->accessToken->plainTextToken;
+    }
+
+    public function plainTextRefreshToken(): string
+    {
+        return $this->plainTextRefreshToken;
     }
 }

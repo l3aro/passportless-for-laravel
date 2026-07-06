@@ -60,16 +60,16 @@ it('issues access and refresh tokens for a session', function () {
     $pair = $user->createTokenPair('iphone', ['orders:read']);
 
     expect($pair->plainTextAccessToken())->toContain('|')
-        ->and($pair->plainTextRefreshToken)->toContain('|')
+        ->and($pair->plainTextRefreshToken())->toContain('|')
         ->and($pair->session->exists)->toBeTrue()
-        ->and($pair->refreshToken->token)->not->toBe($pair->plainTextRefreshToken);
+        ->and($pair->refreshToken->token)->not->toBe($pair->plainTextRefreshToken());
 });
 
 it('rotates refresh tokens once', function () {
     $user = PassportlessRefreshTestUser::query()->create();
     $pair = $user->createTokenPair('iphone', ['orders:read']);
 
-    $rotated = app(Passportless::class)->refreshToken($pair->plainTextRefreshToken, ['orders:read']);
+    $rotated = app(Passportless::class)->refreshToken($pair->plainTextRefreshToken(), ['orders:read']);
 
     expect($rotated)->not->toBeNull()
         ->and($pair->refreshToken->fresh()->isRotated())->toBeTrue();
@@ -78,7 +78,7 @@ it('rotates refresh tokens once', function () {
         $this->fail('Refresh token rotation failed.');
     }
 
-    expect($rotated->plainTextRefreshToken)->not->toBe($pair->plainTextRefreshToken)
+    expect($rotated->plainTextRefreshToken())->not->toBe($pair->plainTextRefreshToken())
         ->and($rotated->refreshToken->family_id)->toBe($pair->refreshToken->family_id)
         ->and($rotated->session->getKey())->toBe($pair->session->getKey());
 });
@@ -87,7 +87,7 @@ it('preserves existing abilities when refresh caller does not pass abilities', f
     $user = PassportlessRefreshTestUser::query()->create();
     $pair = $user->createTokenPair('iphone', ['orders:read']);
 
-    $rotated = app(Passportless::class)->refreshToken($pair->plainTextRefreshToken);
+    $rotated = app(Passportless::class)->refreshToken($pair->plainTextRefreshToken());
 
     if ($rotated === null) {
         $this->fail('Refresh token rotation failed.');
@@ -101,7 +101,7 @@ it('rejects ability expansion during refresh', function () {
     $user = PassportlessRefreshTestUser::query()->create();
     $pair = $user->createTokenPair('iphone', ['orders:read']);
 
-    $rotated = app(Passportless::class)->refreshToken($pair->plainTextRefreshToken, ['orders:read', 'orders:write']);
+    $rotated = app(Passportless::class)->refreshToken($pair->plainTextRefreshToken(), ['orders:read', 'orders:write']);
 
     expect($rotated)->toBeNull()
         ->and($pair->refreshToken->fresh()->isRotated())->toBeFalse();
@@ -111,7 +111,7 @@ it('does not coerce malformed abilities during refresh', function () {
     $user = PassportlessRefreshTestUser::query()->create();
     $pair = $user->createTokenPair('iphone', [1]);
 
-    $rotated = app(Passportless::class)->refreshToken($pair->plainTextRefreshToken, ['1']);
+    $rotated = app(Passportless::class)->refreshToken($pair->plainTextRefreshToken(), ['1']);
 
     expect($rotated)->toBeNull()
         ->and($pair->refreshToken->fresh()->isRotated())->toBeFalse();
@@ -121,7 +121,7 @@ it('allows ability narrowing during refresh', function () {
     $user = PassportlessRefreshTestUser::query()->create();
     $pair = $user->createTokenPair('iphone', ['orders:read', 'orders:write']);
 
-    $rotated = app(Passportless::class)->refreshToken($pair->plainTextRefreshToken, ['orders:read']);
+    $rotated = app(Passportless::class)->refreshToken($pair->plainTextRefreshToken(), ['orders:read']);
 
     expect($rotated)->not->toBeNull()
         ->and($rotated?->accessToken->accessToken->can('orders:read'))->toBeTrue()
@@ -134,7 +134,7 @@ it('rejects refresh tokens issued for a different configured guard', function ()
 
     config()->set('passportless.guard', 'other-guard');
 
-    expect(app(Passportless::class)->refreshToken($pair->plainTextRefreshToken))->toBeNull();
+    expect(app(Passportless::class)->refreshToken($pair->plainTextRefreshToken()))->toBeNull();
 });
 
 it('rejects access tokens issued for a different configured provider', function () {
@@ -159,9 +159,9 @@ it('revokes refresh token family when a rotated refresh token is reused', functi
     $user = PassportlessRefreshTestUser::query()->create();
     $pair = $user->createTokenPair('iphone', ['orders:read']);
 
-    app(Passportless::class)->refreshToken($pair->plainTextRefreshToken, ['orders:read']);
+    app(Passportless::class)->refreshToken($pair->plainTextRefreshToken(), ['orders:read']);
 
-    $reused = app(Passportless::class)->refreshToken($pair->plainTextRefreshToken, ['orders:read']);
+    $reused = app(Passportless::class)->refreshToken($pair->plainTextRefreshToken(), ['orders:read']);
 
     expect($reused)->toBeNull()
         ->and(RefreshToken::query()->where('family_id', $pair->refreshToken->family_id)->whereNull('revoked_at')->count())->toBe(0);
@@ -173,9 +173,9 @@ it('can leave refresh token family untouched on reuse when configured', function
     $user = PassportlessRefreshTestUser::query()->create();
     $pair = $user->createTokenPair('iphone', ['orders:read']);
 
-    app(Passportless::class)->refreshToken($pair->plainTextRefreshToken);
+    app(Passportless::class)->refreshToken($pair->plainTextRefreshToken());
 
-    $reused = app(Passportless::class)->refreshToken($pair->plainTextRefreshToken);
+    $reused = app(Passportless::class)->refreshToken($pair->plainTextRefreshToken());
 
     expect($reused)->toBeNull()
         ->and(RefreshToken::query()->where('family_id', $pair->refreshToken->family_id)->whereNull('revoked_at')->count())->toBe(2);
