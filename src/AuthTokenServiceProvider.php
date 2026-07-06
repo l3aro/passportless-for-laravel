@@ -4,7 +4,7 @@ namespace l3aro\AuthToken;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
-use l3aro\AuthToken\Commands\AuthTokenCommand;
+use l3aro\AuthToken\Commands\PruneStaleCommand;
 use l3aro\AuthToken\Http\Middleware\CheckAbilities;
 use l3aro\AuthToken\Http\Middleware\CheckForAnyAbility;
 use Spatie\LaravelPackageTools\Package;
@@ -68,6 +68,6 @@ class AuthTokenServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasViews()
             ->hasMigration('create_auth_token_for_laravel_table')
-            ->hasCommand(AuthTokenCommand::class);
+            ->hasCommand(PruneStaleCommand::class);
     }
 }
