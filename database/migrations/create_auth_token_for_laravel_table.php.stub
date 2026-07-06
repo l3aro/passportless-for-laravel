@@ -36,6 +36,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['session_id', 'revoked_at']);
+            $table->index(['session_id', 'id']);
             $table->index(['revoked_at', 'expires_at']);
             $table->index('expires_at');
         });
