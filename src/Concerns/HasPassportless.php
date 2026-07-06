@@ -5,9 +5,9 @@ namespace l3aro\Passportless\Concerns;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use l3aro\Passportless\Passportless;
 use l3aro\Passportless\Models\PersonalAccessToken;
 use l3aro\Passportless\Models\TokenSession;
+use l3aro\Passportless\Passportless;
 use l3aro\Passportless\Support\NewAccessToken;
 use l3aro\Passportless\Support\NewTokenPair;
 

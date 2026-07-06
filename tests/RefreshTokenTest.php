@@ -2,9 +2,9 @@
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use l3aro\Passportless\Passportless;
 use l3aro\Passportless\Models\RefreshToken;
 use l3aro\Passportless\Models\Tokenable;
+use l3aro\Passportless\Passportless;
 
 beforeEach(function () {
     Schema::create('auth_token_refresh_test_users', function (Blueprint $table) {
