@@ -5,7 +5,23 @@
 [![GitHub Code Style Action Status](https://github.com/l3aro/passportless-for-laravel/actions/workflows/fix-php-code-style-issues.yml/badge.svg)](https://github.com/l3aro/passportless-for-laravel/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/l3aro/passportless-for-laravel.svg?style=flat-square)](https://packagist.org/packages/l3aro/passportless-for-laravel)
 
-Passportless provides first-party API tokens with optional abilities. Abilities are simple permission strings attached to access tokens; they are not OAuth scopes and do not add OAuth2 grant flows.
+Passportless provides first-party API token authentication for Laravel applications that need personal access tokens, optional refresh-token rotation, token sessions, and ability checks without running an OAuth2 server. Abilities are simple permission strings attached to access tokens; they are not OAuth scopes and do not add OAuth2 grant flows.
+
+## Purpose and comparison
+
+Passportless is built for applications where your own Laravel app issues and validates tokens for your own clients, such as mobile apps, CLIs, internal APIs, and server-to-server integrations. It keeps token authentication small and explicit: hashed access tokens, optional refresh tokens with reuse detection, guard integration, and `tokenCan` / `tokenCannot` ability checks.
+
+Use Passportless when you want first-party API tokens without OAuth clients, authorization-code redirects, client secrets, or delegated third-party access flows. Compared with Laravel Passport and Laravel Sanctum:
+
+| Aspect | Passportless | Laravel Passport | Laravel Sanctum |
+| --- | --- | --- | --- |
+| Primary purpose | First-party API token authentication | Full OAuth2 authorization server | SPA authentication and simple API tokens |
+| OAuth2 support | No | Yes | No |
+| Token model | Hashed access tokens with optional rotated refresh tokens | OAuth2 access tokens, refresh tokens, clients, and scopes | Personal access tokens and cookie-based SPA sessions |
+| Permissions | Simple token abilities | OAuth2 scopes | Token abilities |
+| Best fit | First-party mobile apps, CLIs, internal APIs, server-to-server tokens | Third-party integrations and delegated OAuth access | Laravel SPAs and simple personal access tokens |
+| Operational complexity | Small: publish migrations/config, use guard and middleware | Higher: keys, clients, grants, redirects, scopes | Low: token table and optional SPA cookie setup |
+| Not designed for | OAuth2 grants or third-party delegated authorization | Lightweight first-party tokens only | OAuth2 grants or third-party delegated authorization |
 
 ## Installation
 
@@ -79,6 +95,41 @@ Route::get('/orders', OrdersController::class)
 Route::post('/orders', OrdersController::class)
     ->middleware(['auth:passportless', 'ability:orders:write,orders:admin']);
 ```
+
+## Browser cookies
+
+Passportless provides `l3aro\Passportless\PassportlessCookieManager` for host-owned browser routes that want access, refresh, and CSRF cookies. The manager is container-resolved as a singleton and returns Symfony `Cookie` objects only; it does not register routes, mutate responses, or queue cookies.
+
+```php
+use l3aro\Passportless\PassportlessCookieManager;
+
+Route::post('/auth/login', function (PassportlessCookieManager $cookies) {
+    $pair = auth()->user()->createTokenPair('browser');
+    $csrf = Str::random(40);
+
+    return response()->json(['csrf_token' => $csrf])
+        ->withCookie($cookies->createAccessCookie($pair->plainTextAccessToken()))
+        ->withCookie($cookies->createRefreshCookie($pair->plainTextRefreshToken))
+        ->withCookie($cookies->createCsrfCookie($csrf));
+});
+```
+
+The published `passportless.cookie` config owns cookie names, paths, domain, Secure flag, SameSite policy, and role-specific HttpOnly flags. Defaults are first-party browser defaults: access and refresh cookies are HttpOnly, the CSRF cookie is readable by JavaScript, SameSite is `lax`, access and CSRF paths are `/`, refresh path is `/api/auth/refresh`, and Secure is enabled when `APP_ENV=production`. Access cookie lifetime follows `passportless.access_token.expiration`; refresh and CSRF cookie lifetimes follow `passportless.refresh_token.expiration`. Deletion methods use the same configured name, path, domain, Secure, HttpOnly, and SameSite attributes as issuance.
+
+The manager rejects invalid or unsafe configuration when resolved. Access and refresh cookies must remain HttpOnly, cookie names must be unique, paths must be absolute, token lifetimes must be positive integers, and `SameSite=None` requires Secure cookies.
+
+Use configured names when reading cookies in host middleware or routes:
+
+```php
+$request->cookie($cookies->refreshCookieName());
+$cookies->forgetAccessCookie();
+$cookies->forgetRefreshCookie();
+$cookies->forgetCsrfCookie();
+```
+
+Same-origin browser clients generally do not need CORS and can use Fetch `credentials: 'same-origin'`. Cross-origin clients must use `credentials: 'include'`, explicit allowed origins, and host-owned Laravel CORS configuration with credential support; wildcard origins are not valid for credentialed CORS. Cross-site cookies must be configured with `SameSite=None` and `Secure=true`. CORS controls browser access to cross-origin responses and does not authenticate requests or replace CSRF protection.
+
+Laravel's `EncryptCookies` middleware encrypts response cookies and decrypts request cookies by default. Keep access and refresh tokens HttpOnly and unavailable to JavaScript. If your double-submit CSRF design requires JavaScript to read the CSRF cookie, configure the host application's cookie encryption exclusions for that CSRF cookie name; Passportless cannot infer that safely for every application.
 
 ## Testing
 
