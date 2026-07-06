@@ -28,4 +28,28 @@ return [
     'token' => [
         'max_length' => 120,
     ],
+
+    'cookie' => [
+        'domain' => null,
+        'secure' => null,
+        'same_site' => 'lax',
+
+        'access' => [
+            'name' => 'passportless_access_token',
+            'path' => '/',
+            'http_only' => true,
+        ],
+
+        'refresh' => [
+            'name' => 'passportless_refresh_token',
+            'path' => '/api/auth/refresh',
+            'http_only' => true,
+        ],
+
+        'csrf' => [
+            'name' => 'passportless_csrf_token',
+            'path' => '/',
+            'http_only' => false,
+        ],
+    ],
 ];
