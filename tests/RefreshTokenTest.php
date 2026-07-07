@@ -7,6 +7,8 @@ use l3aro\Passportless\Models\Tokenable;
 use l3aro\Passportless\Passportless;
 
 beforeEach(function () {
+    config()->set('auth.providers.users.model', PassportlessRefreshTestUser::class);
+
     Schema::create('auth_token_refresh_test_users', function (Blueprint $table) {
         $table->id();
     });
@@ -128,11 +130,11 @@ it('allows ability narrowing during refresh', function () {
         ->and($rotated?->accessToken->accessToken->can('orders:write'))->toBeFalse();
 });
 
-it('rejects refresh tokens issued for a different configured guard', function () {
+it('rejects refresh tokens issued for a removed configured guard', function () {
     $user = PassportlessRefreshTestUser::query()->create();
     $pair = $user->createTokenPair('iphone', ['orders:read']);
 
-    config()->set('passportless.guard', 'other-guard');
+    config()->set('auth.guards.passportless', null);
 
     expect(app(Passportless::class)->refreshToken($pair->plainTextRefreshToken()))->toBeNull();
 });
@@ -141,6 +143,10 @@ it('rejects access tokens issued for a different configured provider', function 
     $user = PassportlessRefreshTestUser::query()->create();
     $pair = $user->createTokenPair('iphone', ['orders:read']);
 
+    config()->set('auth.providers.other-provider', [
+        'driver' => 'eloquent',
+        'model' => PassportlessRefreshTestUser::class,
+    ]);
     config()->set('passportless.provider', 'other-provider');
 
     expect(app(Passportless::class)->findToken($pair->plainTextAccessToken()))->toBeNull();
