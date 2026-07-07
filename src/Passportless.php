@@ -10,16 +10,23 @@ use l3aro\Passportless\Enums\RefreshTokenReuseDetection;
 use l3aro\Passportless\Models\PersonalAccessToken;
 use l3aro\Passportless\Models\RefreshToken;
 use l3aro\Passportless\Models\TokenSession;
+use l3aro\Passportless\Support\AuthBinding;
+use l3aro\Passportless\Support\AuthBindingResolver;
 use l3aro\Passportless\Support\NewAccessToken;
 use l3aro\Passportless\Support\NewTokenPair;
 
 class Passportless
 {
+    public function __construct(protected AuthBindingResolver $authBindings) {}
+
     /**
      * @param  array<int, string>  $abilities
      */
-    public function createToken(Model $tokenable, string $name, array $abilities = ['*'], ?DateTimeInterface $expiresAt = null, string|int|null $sessionId = null): NewAccessToken
+    public function createToken(Model $tokenable, string $name, array $abilities = ['*'], ?DateTimeInterface $expiresAt = null, string|int|null $sessionId = null, ?string $guard = null): NewAccessToken
     {
+        $resolved = $this->authBindings->resolve($guard);
+        $this->assertTokenableMatchesBinding($tokenable, $resolved);
+
         $plainTextToken = Str::random(40);
 
         $token = $tokenable->morphMany(PersonalAccessToken::class, 'tokenable')->create([
@@ -27,8 +34,8 @@ class Passportless
             'token' => hash('sha256', $plainTextToken),
             'abilities' => $abilities,
             'session_id' => $sessionId,
-            'guard' => config('passportless.guard'),
-            'provider' => config('passportless.provider'),
+            'guard' => $resolved->guard,
+            'provider' => $resolved->provider,
             'expires_at' => $expiresAt ?? now()->addMinutes((int) config('passportless.access_token.expiration', 15)),
         ]);
 
@@ -38,16 +45,18 @@ class Passportless
     /**
      * @param  array<int, string>  $abilities
      */
-    public function createTokenPair(Model $tokenable, string $name, array $abilities = ['*']): NewTokenPair
+    public function createTokenPair(Model $tokenable, string $name, array $abilities = ['*'], ?string $guard = null): NewTokenPair
     {
-        return DB::transaction(function () use ($tokenable, $name, $abilities): NewTokenPair {
+        $resolved = $this->authBindings->resolve($guard);
+
+        return DB::transaction(function () use ($tokenable, $name, $abilities, $resolved): NewTokenPair {
             $session = $tokenable->morphMany(TokenSession::class, 'tokenable')->create([
                 'name' => $name,
-                'guard' => config('passportless.guard'),
-                'provider' => config('passportless.provider'),
+                'guard' => $resolved->guard,
+                'provider' => $resolved->provider,
             ]);
 
-            return $this->issueTokenPair($tokenable, $session, (string) Str::uuid(), $name, $abilities);
+            return $this->issueTokenPair($tokenable, $session, (string) Str::uuid(), $name, $abilities, $resolved);
         });
     }
 
@@ -69,8 +78,14 @@ class Passportless
                 return null;
             }
 
+            $binding = $this->resolveStoredContext($lockedRefreshToken);
+
+            if (! $binding instanceof AuthBinding) {
+                return null;
+            }
+
             if ($this->shouldRevokeFamily($lockedRefreshToken)) {
-                $this->revokeFamily($lockedRefreshToken->family_id);
+                $this->revokeFamily($lockedRefreshToken->family_id, $binding);
             }
 
             if ($lockedRefreshToken->isRotated()) {
@@ -85,10 +100,6 @@ class Passportless
                 return null;
             }
 
-            if (! $this->matchesConfiguredContext($lockedRefreshToken)) {
-                return null;
-            }
-
             $session = $lockedRefreshToken->session;
             $tokenable = $lockedRefreshToken->tokenable;
 
@@ -100,15 +111,15 @@ class Passportless
                 return null;
             }
 
-            if (! $this->matchesConfiguredContext($session)) {
+            if (! $this->matchesConfiguredContext($session, $binding)) {
                 return null;
             }
 
-            if (! $tokenable instanceof Model) {
+            if (! $tokenable instanceof Model || ! $this->tokenableMatchesBinding($tokenable, $binding)) {
                 return null;
             }
 
-            $currentAbilities = $this->abilitiesForSession($session);
+            $currentAbilities = $this->abilitiesForSession($session, $binding);
             $nextAbilities = $abilities ?? $currentAbilities;
 
             if (! $this->abilitiesAreSubset($nextAbilities, $currentAbilities)) {
@@ -123,11 +134,12 @@ class Passportless
                 $lockedRefreshToken->family_id,
                 (string) $session->getAttribute('name'),
                 $nextAbilities,
+                $binding,
             );
         });
     }
 
-    public function findToken(string $plainTextToken): ?PersonalAccessToken
+    public function findToken(string $plainTextToken, ?string $guard = null): ?PersonalAccessToken
     {
         $parsedToken = $this->parsePlainTextToken($plainTextToken);
 
@@ -145,7 +157,13 @@ class Passportless
             return null;
         }
 
-        if ($accessToken->isExpired() || $accessToken->isRevoked() || ! $this->matchesConfiguredContext($accessToken)) {
+        $binding = $this->resolveStoredContext($accessToken);
+
+        if ($accessToken->isExpired() || $accessToken->isRevoked() || ! $binding instanceof AuthBinding) {
+            return null;
+        }
+
+        if ($guard !== null && $binding->guard !== $guard) {
             return null;
         }
 
@@ -154,9 +172,15 @@ class Passportless
         if ($sessionId !== null) {
             $session = $accessToken->session;
 
-            if (! $session instanceof TokenSession || $session->isRevoked() || ! $this->matchesConfiguredContext($session)) {
+            if (! $session instanceof TokenSession || $session->isRevoked() || ! $this->matchesConfiguredContext($session, $binding)) {
                 return null;
             }
+        }
+
+        $tokenable = $accessToken->tokenable;
+
+        if (! $tokenable instanceof Model || ! $this->tokenableMatchesBinding($tokenable, $binding)) {
+            return null;
         }
 
         return $accessToken;
@@ -208,9 +232,9 @@ class Passportless
     /**
      * @param  array<int, string>  $abilities
      */
-    protected function issueTokenPair(Model $tokenable, TokenSession $session, string $familyId, string $name, array $abilities): NewTokenPair
+    protected function issueTokenPair(Model $tokenable, TokenSession $session, string $familyId, string $name, array $abilities, AuthBinding $binding): NewTokenPair
     {
-        $accessToken = $this->createToken($tokenable, $name, $abilities, null, $session->getKey());
+        $accessToken = $this->createToken($tokenable, $name, $abilities, null, $session->getKey(), $binding->guard);
 
         $plainTextRefreshToken = Str::random(64);
 
@@ -218,8 +242,8 @@ class Passportless
             'session_id' => $session->getKey(),
             'family_id' => $familyId,
             'token' => hash('sha256', $plainTextRefreshToken),
-            'guard' => config('passportless.guard'),
-            'provider' => config('passportless.provider'),
+            'guard' => $binding->guard,
+            'provider' => $binding->provider,
             'expires_at' => now()->addMinutes((int) config('passportless.refresh_token.expiration', 60 * 24 * 30)),
         ]);
 
@@ -228,26 +252,58 @@ class Passportless
         return new NewTokenPair($accessToken, $refreshToken, $session, $refreshToken->getKey().'|'.$plainTextRefreshToken);
     }
 
-    protected function revokeFamily(string $familyId): void
+    protected function revokeFamily(string $familyId, AuthBinding $binding): void
     {
         RefreshToken::query()
             ->where('family_id', $familyId)
+            ->where('guard', $binding->guard)
+            ->where('provider', $binding->provider)
             ->whereNull('revoked_at')
             ->update(['revoked_at' => now()]);
     }
 
-    protected function matchesConfiguredContext(Model $model): bool
+    protected function matchesConfiguredContext(Model $model, AuthBinding $binding): bool
     {
-        return $model->getAttribute('guard') === config('passportless.guard')
-            && $model->getAttribute('provider') === config('passportless.provider');
+        $resolved = $this->resolveStoredContext($model);
+
+        return $resolved instanceof AuthBinding
+            && $resolved->guard === $binding->guard
+            && $resolved->provider === $binding->provider;
+    }
+
+    protected function resolveStoredContext(Model $model): ?AuthBinding
+    {
+        return $this->authBindings->resolveForStoredContext(
+            $this->stringOrNull($model->getAttribute('guard')),
+            $this->stringOrNull($model->getAttribute('provider')),
+        );
+    }
+
+    protected function stringOrNull(mixed $value): ?string
+    {
+        return is_string($value) ? $value : null;
+    }
+
+    protected function assertTokenableMatchesBinding(Model $tokenable, AuthBinding $binding): void
+    {
+        if (! $this->tokenableMatchesBinding($tokenable, $binding)) {
+            throw new \InvalidArgumentException("Tokenable model does not match Passportless guard [{$binding->guard}].");
+        }
+    }
+
+    protected function tokenableMatchesBinding(Model $tokenable, AuthBinding $binding): bool
+    {
+        return $tokenable instanceof $binding->model;
     }
 
     /**
      * @return array<int, string>
      */
-    protected function abilitiesForSession(TokenSession $session): array
+    protected function abilitiesForSession(TokenSession $session, AuthBinding $binding): array
     {
         $accessToken = $session->accessTokens()
+            ->where('guard', $binding->guard)
+            ->where('provider', $binding->provider)
             ->latest('id')
             ->first();
 
