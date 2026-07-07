@@ -16,7 +16,7 @@ return [
     ],
 
     'refresh_token' => [
-        'expiration' => 43200,
+        'expiration' => 60 * 24 * 30,
         'reuse_detection' => RefreshTokenReuseDetection::REVOKE_FAMILY,
     ],
 

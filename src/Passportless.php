@@ -220,7 +220,7 @@ class Passportless
             'token' => hash('sha256', $plainTextRefreshToken),
             'guard' => config('passportless.guard'),
             'provider' => config('passportless.provider'),
-            'expires_at' => now()->addMinutes((int) config('passportless.refresh_token.expiration', 43200)),
+            'expires_at' => now()->addMinutes((int) config('passportless.refresh_token.expiration', 60 * 24 * 30)),
         ]);
 
         $session->forceFill(['last_used_at' => now()])->save();
