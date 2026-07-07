@@ -26,17 +26,17 @@ trait HasPassportless
     /**
      * @param  array<int, string>  $abilities
      */
-    public function createToken(string $name, array $abilities = ['*'], ?DateTimeInterface $expiresAt = null): NewAccessToken
+    public function createToken(string $name, array $abilities = ['*'], ?DateTimeInterface $expiresAt = null, ?string $guard = null): NewAccessToken
     {
-        return app(Passportless::class)->createToken($this, $name, $abilities, $expiresAt);
+        return app(Passportless::class)->createToken($this, $name, $abilities, $expiresAt, null, $guard);
     }
 
     /**
      * @param  array<int, string>  $abilities
      */
-    public function createTokenPair(string $name, array $abilities = ['*']): NewTokenPair
+    public function createTokenPair(string $name, array $abilities = ['*'], ?string $guard = null): NewTokenPair
     {
-        return app(Passportless::class)->createTokenPair($this, $name, $abilities);
+        return app(Passportless::class)->createTokenPair($this, $name, $abilities, $guard);
     }
 
     public function tokenSessions(): MorphMany

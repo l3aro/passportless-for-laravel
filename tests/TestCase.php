@@ -2,6 +2,7 @@
 
 namespace l3aro\Passportless\Tests;
 
+use Illuminate\Foundation\Auth\User;
 use l3aro\Passportless\PassportlessServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
@@ -22,6 +23,14 @@ class TestCase extends Orchestra
     public function getEnvironmentSetUp($app)
     {
         config()->set('database.default', 'testing');
+        config()->set('auth.guards.passportless', [
+            'driver' => 'passportless',
+            'provider' => 'users',
+        ]);
+        config()->set('auth.providers.users', [
+            'driver' => 'eloquent',
+            'model' => User::class,
+        ]);
 
         /*
          foreach (\Illuminate\Support\Facades\File::allFiles(__DIR__ . '/../database/migrations') as $migration) {

@@ -66,6 +66,26 @@ return [
 ];
 ```
 
+Define the Passportless guard and provider in `config/auth.php`:
+
+```php
+'guards' => [
+    'passportless' => [
+        'driver' => 'passportless',
+        'provider' => 'users',
+    ],
+],
+
+'providers' => [
+    'users' => [
+        'driver' => 'eloquent',
+        'model' => App\Models\User::class,
+    ],
+],
+```
+
+With the default config, `passportless.provider` may stay `null`; Passportless derives the provider from `auth.guards.passportless.provider`.
+
 ## Usage
 
 ```php
@@ -104,6 +124,52 @@ Route::get('/orders', OrdersController::class)
 Route::post('/orders', OrdersController::class)
     ->middleware(['auth:passportless', 'ability:orders:write,orders:admin']);
 ```
+
+## Multiple authenticatable models
+
+Use separate Passportless guards when one app issues tokens for separate identity stores, such as users and staff. `config/auth.php` owns guards, providers, and models:
+
+```php
+'guards' => [
+    'passportless-client' => [
+        'driver' => 'passportless',
+        'provider' => 'users',
+    ],
+    'passportless-admin' => [
+        'driver' => 'passportless',
+        'provider' => 'staff',
+    ],
+],
+
+'providers' => [
+    'users' => [
+        'driver' => 'eloquent',
+        'model' => App\Models\User::class,
+    ],
+    'staff' => [
+        'driver' => 'eloquent',
+        'model' => App\Models\Staff::class,
+    ],
+],
+```
+
+Set the default Passportless guard in `config/passportless.php`, or select another guard explicitly when issuing tokens:
+
+```php
+$clientToken = $user->createToken('iphone');
+$staffPair = $staff->createTokenPair('admin-browser', ['staff:read'], guard: 'passportless-admin');
+```
+
+Protect each route with its matching Laravel guard:
+
+```php
+Route::get('/me', ClientProfileController::class)->middleware('auth:passportless-client');
+Route::get('/admin/me', StaffProfileController::class)->middleware('auth:passportless-admin');
+```
+
+Guards and providers are identity boundaries. Use policies or gates for current business authorization; token abilities remain per-token permissions and should not be the only proof of staff status.
+
+Passportless validates that the token owner model matches the provider model for the resolved guard. A `User` cannot mint or authenticate a `passportless-admin` token when that guard points to `App\Models\Staff`.
 
 ## Best practice: browser authentication with HTTP-only cookies
 

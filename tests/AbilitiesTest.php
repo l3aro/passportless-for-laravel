@@ -49,6 +49,8 @@ it('checks abilities through the tokenable model trait', function () {
 });
 
 it('authenticates bearer tokens through the package guard', function () {
+    config()->set('auth.providers.users.model', PassportlessTestUser::class);
+
     Schema::create('auth_token_test_users', function (Blueprint $table) {
         $table->id();
     });
@@ -89,6 +91,7 @@ it('authenticates bearer tokens through the package guard', function () {
 
 it('throttles last used updates on bearer token authentication', function () {
     config()->set('passportless.access_token.last_used_update_interval', 60);
+    config()->set('auth.providers.users.model', PassportlessThrottleTestUser::class);
 
     Schema::create('auth_token_throttle_test_users', function (Blueprint $table) {
         $table->id();

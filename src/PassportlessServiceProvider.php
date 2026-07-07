@@ -2,11 +2,13 @@
 
 namespace l3aro\Passportless;
 
+use Illuminate\Auth\RequestGuard;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use l3aro\Passportless\Commands\PruneStaleCommand;
 use l3aro\Passportless\Http\Middleware\CheckAbilities;
 use l3aro\Passportless\Http\Middleware\CheckForAnyAbility;
+use l3aro\Passportless\Support\AuthBindingResolver;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -16,44 +18,49 @@ class PassportlessServiceProvider extends PackageServiceProvider
     {
         $this->app->singleton(Passportless::class);
         $this->app->singleton(PassportlessCookieManager::class);
+        $this->app->singleton(AuthBindingResolver::class);
     }
 
     public function packageBooted(): void
     {
-        config()->set('auth.guards.passportless.driver', config('auth.guards.passportless.driver', 'passportless'));
-
         $router = $this->app['router'];
 
         $router->aliasMiddleware('abilities', CheckAbilities::class);
         $router->aliasMiddleware('ability', CheckForAnyAbility::class);
 
-        Auth::viaRequest('passportless', function ($request) {
-            $plainTextToken = $request->bearerToken();
+        Auth::extend('passportless', function ($app, string $name, array $config): RequestGuard {
+            $guard = new RequestGuard(function ($request) use ($app, $name) {
+                $plainTextToken = $request->bearerToken();
 
-            if (! $plainTextToken) {
-                return null;
-            }
+                if (! $plainTextToken) {
+                    return null;
+                }
 
-            $accessToken = $this->app->make(Passportless::class)->findToken($plainTextToken);
+                $accessToken = $app->make(Passportless::class)->findToken($plainTextToken, $name);
 
-            if (! $accessToken) {
-                return null;
-            }
+                if (! $accessToken) {
+                    return null;
+                }
 
-            $tokenable = $accessToken->tokenable;
+                $tokenable = $accessToken->tokenable;
 
-            if (! $tokenable instanceof Model || ! method_exists($tokenable, 'withAccessToken')) {
-                return null;
-            }
+                if (! $tokenable instanceof Model || ! method_exists($tokenable, 'withAccessToken')) {
+                    return null;
+                }
 
-            $lastUsedAt = $accessToken->last_used_at;
-            $updateInterval = (int) config('passportless.access_token.last_used_update_interval', 60);
+                $lastUsedAt = $accessToken->last_used_at;
+                $updateInterval = (int) config('passportless.access_token.last_used_update_interval', 60);
 
-            if ($lastUsedAt === null || $lastUsedAt->copy()->addSeconds($updateInterval)->isPast()) {
-                $accessToken->recordUsage(now());
-            }
+                if ($lastUsedAt === null || $lastUsedAt->copy()->addSeconds($updateInterval)->isPast()) {
+                    $accessToken->recordUsage(now());
+                }
 
-            return $tokenable->withAccessToken($accessToken);
+                return $tokenable->withAccessToken($accessToken);
+            }, $app['request'], Auth::createUserProvider($config['provider'] ?? null));
+
+            $app->refresh('request', $guard, 'setRequest');
+
+            return $guard;
         });
     }
 
