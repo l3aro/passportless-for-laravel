@@ -1,27 +1,36 @@
-# Passportless
+# Passportless for Laravel
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/l3aro/passportless-for-laravel.svg?style=flat-square)](https://packagist.org/packages/l3aro/passportless-for-laravel)
 [![GitHub Tests Action Status](https://github.com/l3aro/passportless-for-laravel/actions/workflows/run-tests.yml/badge.svg)](https://github.com/l3aro/passportless-for-laravel/actions?query=workflow%3Arun-tests+branch%3Amain)
 [![GitHub Code Style Action Status](https://github.com/l3aro/passportless-for-laravel/actions/workflows/fix-php-code-style-issues.yml/badge.svg)](https://github.com/l3aro/passportless-for-laravel/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/l3aro/passportless-for-laravel.svg?style=flat-square)](https://packagist.org/packages/l3aro/passportless-for-laravel)
 
-Passportless provides first-party API token authentication for Laravel applications that need personal access tokens, optional refresh-token rotation, token sessions, and ability checks without running an OAuth2 server. Abilities are simple permission strings attached to access tokens; they are not OAuth scopes and do not add OAuth2 grant flows.
+Passportless provides API token authentication for Laravel applications that need personal access tokens, optional refresh-token rotation, token sessions, and ability checks without running an OAuth2 server. Abilities are simple permission strings attached to access tokens; they are not OAuth scopes and do not add OAuth2 grant flows.
+
+## Features
+
+- Hashed personal access tokens for API authentication.
+- Optional refresh-token rotation with reuse detection.
+- Token sessions for grouping and revoking related tokens.
+- Laravel guard and middleware integration.
+- Simple token ability checks with `tokenCan` and `tokenCannot`.
+- HTTP-only cookie helpers for browser access, refresh, and CSRF cookies.
 
 ## Purpose and comparison
 
 Passportless is built for applications where your own Laravel app issues and validates tokens for your own clients, such as mobile apps, CLIs, internal APIs, and server-to-server integrations. It keeps token authentication small and explicit: hashed access tokens, optional refresh tokens with reuse detection, guard integration, and `tokenCan` / `tokenCannot` ability checks.
 
-Use Passportless when you want first-party API tokens without OAuth clients, authorization-code redirects, client secrets, or delegated third-party access flows. Compared with Laravel Passport and Laravel Sanctum:
+Use Passportless when your Laravel app should issue and validate its own API tokens without OAuth clients, authorization-code redirects, client secrets, or delegated third-party access flows. Compared with Laravel Passport and Laravel Sanctum:
 
-| Aspect | Passportless | Laravel Passport | Laravel Sanctum |
+| Aspect | Passportless for Laravel | Laravel Passport | Laravel Sanctum |
 | --- | --- | --- | --- |
-| Primary purpose | First-party API token authentication | Full OAuth2 authorization server | SPA authentication and simple API tokens |
+| Primary purpose | API token authentication owned by your Laravel app | Full OAuth2 authorization server | SPA authentication and simple API tokens |
 | OAuth2 support | No | Yes | No |
+| Features | Access tokens, optional refresh-token rotation, token sessions, guard/middleware integration, ability checks, cookie helpers | OAuth2 clients, grants, scopes, refresh tokens, authorization-code redirects | Personal access tokens, SPA cookie authentication, CSRF protection |
 | Token model | Hashed access tokens with optional rotated refresh tokens | OAuth2 access tokens, refresh tokens, clients, and scopes | Personal access tokens and cookie-based SPA sessions |
 | Permissions | Simple token abilities | OAuth2 scopes | Token abilities |
-| Best fit | First-party mobile apps, CLIs, internal APIs, server-to-server tokens | Third-party integrations and delegated OAuth access | Laravel SPAs and simple personal access tokens |
-| Operational complexity | Small: publish migrations/config, use guard and middleware | Higher: keys, clients, grants, redirects, scopes | Low: token table and optional SPA cookie setup |
-| Not designed for | OAuth2 grants or third-party delegated authorization | Lightweight first-party tokens only | OAuth2 grants or third-party delegated authorization |
+| Best fit | Mobile apps, CLIs, internal APIs, server-to-server tokens | Third-party integrations and delegated OAuth access | Laravel SPAs and simple personal access tokens |
+| Operational complexity | Low: publish migrations/config, use guard and middleware | High: keys, clients, grants, redirects, scopes | Low: token table and optional SPA cookie setup |
 
 ## Installation
 
