@@ -219,6 +219,12 @@ class PassportlessCookieManager
             if (! is_string($guard) || $guard === '' || ! is_array($config)) {
                 throw new InvalidArgumentException('Passportless cookie guard entries must be keyed by non-empty guard names.');
             }
+
+            foreach (['access', 'refresh', 'csrf'] as $role) {
+                if (array_key_exists($role, $config) && ! is_array($config[$role])) {
+                    throw new InvalidArgumentException("The [passportless.cookie.guards.{$guard}.{$role}] configuration value must be an array.");
+                }
+            }
         }
 
         return $guards;

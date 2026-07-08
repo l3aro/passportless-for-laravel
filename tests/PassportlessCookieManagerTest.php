@@ -206,6 +206,7 @@ it('rejects unsafe guard keyed cookie configuration', function (string $key, mix
     expect(fn () => app(PassportlessCookieManager::class))->toThrow(InvalidArgumentException::class);
 })->with([
     'duplicate effective admin name' => ['passportless.cookie.guards.passportless-admin.csrf.name', 'admin_access_token'],
+    'non-array admin refresh role' => ['passportless.cookie.guards.passportless-admin.refresh', 'bad'],
     'relative admin refresh path' => ['passportless.cookie.guards.passportless-admin.refresh.path', 'api/auth/admin/refresh'],
     'readable admin access token' => ['passportless.cookie.guards.passportless-admin.access.http_only', false],
     'invalid admin SameSite' => ['passportless.cookie.guards.passportless-admin.same_site', 'invalid'],
