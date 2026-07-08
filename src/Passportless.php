@@ -63,7 +63,7 @@ class Passportless
     /**
      * @param  array<int, string>|null  $abilities
      */
-    public function refreshToken(string $plainTextRefreshToken, ?array $abilities = null): ?NewTokenPair
+    public function refreshToken(string $plainTextRefreshToken, ?array $abilities = null, ?string $guard = null): ?NewTokenPair
     {
         $refreshToken = $this->findRefreshToken($plainTextRefreshToken);
 
@@ -71,7 +71,7 @@ class Passportless
             return null;
         }
 
-        return DB::transaction(function () use ($refreshToken, $abilities): ?NewTokenPair {
+        return DB::transaction(function () use ($refreshToken, $abilities, $guard): ?NewTokenPair {
             $lockedRefreshToken = RefreshToken::query()->whereKey($refreshToken->getKey())->lockForUpdate()->first();
 
             if (! $lockedRefreshToken instanceof RefreshToken) {
@@ -81,6 +81,10 @@ class Passportless
             $binding = $this->resolveStoredContext($lockedRefreshToken);
 
             if (! $binding instanceof AuthBinding) {
+                return null;
+            }
+
+            if ($guard !== null && $binding->guard !== $guard) {
                 return null;
             }
 
