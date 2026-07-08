@@ -82,6 +82,136 @@ it('honors cookie overrides', function () {
         ->and($csrf->isHttpOnly())->toBeFalse();
 });
 
+it('uses the synthesized legacy fallback for explicit fallback guard when guards are absent', function () {
+    config()->set('passportless.guard', 'passportless-client');
+    config()->set('passportless.cookie.secure', true);
+    config()->set('passportless.cookie.guards', []);
+    config()->set('passportless.cookie.refresh.name', 'client_refresh_token');
+    config()->set('passportless.cookie.refresh.path', '/api/auth/refresh');
+
+    $cookies = app(PassportlessCookieManager::class);
+    $clientCookies = $cookies->forGuard('passportless-client');
+
+    expect($cookies->refreshCookieName())->toBe('client_refresh_token')
+        ->and($clientCookies->refreshCookieName())->toBe('client_refresh_token')
+        ->and($cookies->createRefreshCookie('refresh')->getPath())->toBe('/api/auth/refresh')
+        ->and($clientCookies->createRefreshCookie('refresh')->getPath())->toBe('/api/auth/refresh')
+        ->and(fn () => $cookies->forGuard('passportless-admin'))->toThrow(InvalidArgumentException::class);
+});
+
+it('uses guard keyed cookie configuration with fallback inheritance', function () {
+    config()->set('passportless.guard', 'passportless-client');
+    config()->set('passportless.cookie.secure', true);
+    config()->set('passportless.cookie.same_site', 'lax');
+    config()->set('passportless.cookie.refresh.path', '/api/auth/refresh');
+    config()->set('passportless.cookie.guards.passportless-client', [
+        'access' => [
+            'name' => 'client_access_token',
+            'path' => '/api/auth',
+        ],
+        'refresh' => [
+            'name' => 'client_refresh_token',
+        ],
+    ]);
+    config()->set('passportless.cookie.guards.passportless-admin', [
+        'same_site' => 'none',
+        'secure' => true,
+        'access' => [
+            'name' => 'admin_access_token',
+            'path' => '/api/auth/admin',
+        ],
+        'refresh' => [
+            'name' => 'admin_refresh_token',
+            'path' => '/api/auth/admin/refresh',
+        ],
+        'csrf' => [
+            'name' => 'admin_csrf_token',
+            'path' => '/api/auth/admin',
+        ],
+    ]);
+
+    $cookies = app(PassportlessCookieManager::class);
+    $clientCookies = $cookies->forGuard('passportless-client');
+    $adminCookies = $cookies->forGuard('passportless-admin');
+    $clientRefresh = $clientCookies->createRefreshCookie('client-refresh');
+    $adminRefresh = $adminCookies->createRefreshCookie('admin-refresh');
+    $adminCsrf = $adminCookies->createCsrfCookie('admin-csrf');
+    $forgottenAdminRefresh = $adminCookies->forgetRefreshCookie();
+
+    expect($clientCookies->accessCookieName())->toBe('client_access_token')
+        ->and($clientCookies->refreshCookieName())->toBe('client_refresh_token')
+        ->and($cookies->refreshCookieName())->toBe('client_refresh_token')
+        ->and($clientRefresh->getPath())->toBe('/api/auth/refresh')
+        ->and($clientRefresh->isSecure())->toBeTrue()
+        ->and($clientRefresh->isHttpOnly())->toBeTrue()
+        ->and($adminCookies->refreshCookieName())->toBe('admin_refresh_token')
+        ->and($adminRefresh->getPath())->toBe('/api/auth/admin/refresh')
+        ->and($adminCsrf->getPath())->toBe('/api/auth/admin')
+        ->and($adminCsrf->isHttpOnly())->toBeFalse()
+        ->and($forgottenAdminRefresh->getName())->toBe('admin_refresh_token')
+        ->and($forgottenAdminRefresh->getPath())->toBe('/api/auth/admin/refresh')
+        ->and($forgottenAdminRefresh->isCleared())->toBeTrue()
+        ->and(fn () => $cookies->forGuard('passportless-missing'))->toThrow(InvalidArgumentException::class);
+});
+
+it('creates immutable guard scoped cookie managers', function () {
+    config()->set('passportless.guard', 'passportless-client');
+    config()->set('passportless.cookie.guards.passportless-client', [
+        'refresh' => [
+            'name' => 'client_refresh_token',
+            'path' => '/api/auth/refresh',
+        ],
+    ]);
+    config()->set('passportless.cookie.guards.passportless-admin', [
+        'refresh' => [
+            'name' => 'admin_refresh_token',
+            'path' => '/api/auth/admin/refresh',
+        ],
+    ]);
+
+    $cookies = app(PassportlessCookieManager::class);
+    $adminCookies = $cookies->forGuard('passportless-admin');
+
+    expect($adminCookies)->not->toBe($cookies)
+        ->and($cookies->refreshCookieName())->toBe('client_refresh_token')
+        ->and($adminCookies->refreshCookieName())->toBe('admin_refresh_token')
+        ->and($adminCookies->createRefreshCookie('admin')->getPath())->toBe('/api/auth/admin/refresh')
+        ->and($adminCookies->forgetRefreshCookie()->getName())->toBe('admin_refresh_token')
+        ->and($cookies->refreshCookieName())->toBe('client_refresh_token')
+        ->and(fn () => $cookies->forGuard('passportless-missing'))->toThrow(InvalidArgumentException::class);
+});
+
+it('rejects unsafe guard keyed cookie configuration', function (string $key, mixed $value) {
+    config()->set('passportless.guard', 'passportless-client');
+    config()->set('passportless.cookie.secure', true);
+    config()->set('passportless.cookie.guards.passportless-client', []);
+    config()->set('passportless.cookie.guards.passportless-admin', [
+        'same_site' => 'none',
+        'secure' => true,
+        'access' => [
+            'name' => 'admin_access_token',
+            'path' => '/api/auth/admin',
+        ],
+        'refresh' => [
+            'name' => 'admin_refresh_token',
+            'path' => '/api/auth/admin/refresh',
+        ],
+        'csrf' => [
+            'name' => 'admin_csrf_token',
+            'path' => '/api/auth/admin',
+        ],
+    ]);
+    config()->set($key, $value);
+
+    expect(fn () => app(PassportlessCookieManager::class))->toThrow(InvalidArgumentException::class);
+})->with([
+    'duplicate effective admin name' => ['passportless.cookie.guards.passportless-admin.csrf.name', 'admin_access_token'],
+    'relative admin refresh path' => ['passportless.cookie.guards.passportless-admin.refresh.path', 'api/auth/admin/refresh'],
+    'readable admin access token' => ['passportless.cookie.guards.passportless-admin.access.http_only', false],
+    'invalid admin SameSite' => ['passportless.cookie.guards.passportless-admin.same_site', 'invalid'],
+    'admin SameSite none without secure' => ['passportless.cookie.guards.passportless-admin.secure', false],
+]);
+
 it('forgets cookies with issue name path domain and security attributes', function () {
     config()->set('passportless.cookie.domain', '.example.test');
     config()->set('passportless.cookie.secure', true);

@@ -51,5 +51,7 @@ return [
             'path' => '/',
             'http_only' => false,
         ],
+
+        'guards' => [],
     ],
 ];
