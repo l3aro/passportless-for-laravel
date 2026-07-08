@@ -136,6 +136,76 @@ it('preserves guard through refresh rotation with colliding owner IDs isolated',
         ->and($rotated?->accessToken->accessToken->tokenable_id)->toBe(1);
 });
 
+it('fails closed when refresh expected guard differs from stored guard', function () {
+    $staff = PassportlessBindingStaff::query()->create(['id' => 1]);
+    $staffPair = $staff->createTokenPair('staff', ['staff:read'], 'passportless-admin');
+
+    $wrongGuardRefresh = app(Passportless::class)->refreshToken(
+        $staffPair->plainTextRefreshToken(),
+        ['staff:read'],
+        'passportless-client',
+    );
+
+    expect($wrongGuardRefresh)->toBeNull()
+        ->and($staffPair->refreshToken->fresh()->isRotated())->toBeFalse();
+
+    $rightGuardRefresh = app(Passportless::class)->refreshToken(
+        $staffPair->plainTextRefreshToken(),
+        ['staff:read'],
+        'passportless-admin',
+    );
+
+    expect($rightGuardRefresh)->not->toBeNull()
+        ->and($rightGuardRefresh?->refreshToken->guard)->toBe('passportless-admin');
+});
+
+it('revokes a rotated refresh token family when reused through the wrong guard', function () {
+    $staff = PassportlessBindingStaff::query()->create(['id' => 1]);
+    $staffPair = $staff->createTokenPair('staff', ['staff:read'], 'passportless-admin');
+    $rotatedPair = app(Passportless::class)->refreshToken(
+        $staffPair->plainTextRefreshToken(),
+        ['staff:read'],
+        'passportless-admin',
+    );
+
+    expect($rotatedPair)->not->toBeNull();
+
+    $wrongGuardReuse = app(Passportless::class)->refreshToken(
+        $staffPair->plainTextRefreshToken(),
+        ['staff:read'],
+        'passportless-client',
+    );
+
+    expect($wrongGuardReuse)->toBeNull()
+        ->and($staffPair->refreshToken->fresh()->isRevoked())->toBeTrue()
+        ->and($rotatedPair?->refreshToken->fresh()->isRevoked())->toBeTrue();
+});
+
+it('does not use route cookie path as token identity during refresh', function () {
+    $user = PassportlessBindingUser::query()->create(['id' => 1]);
+    $userPair = $user->createTokenPair('client', ['profile:read'], 'passportless-client');
+
+    config()->set('passportless.cookie.guards.passportless-admin.refresh.path', '/api/auth/admin/refresh');
+
+    $adminRouteRefresh = app(Passportless::class)->refreshToken(
+        $userPair->plainTextRefreshToken(),
+        ['profile:read'],
+        'passportless-admin',
+    );
+
+    expect($adminRouteRefresh)->toBeNull()
+        ->and($userPair->refreshToken->fresh()->isRotated())->toBeFalse();
+
+    $userRouteRefresh = app(Passportless::class)->refreshToken(
+        $userPair->plainTextRefreshToken(),
+        ['profile:read'],
+        'passportless-client',
+    );
+
+    expect($userRouteRefresh)->not->toBeNull()
+        ->and($userRouteRefresh?->session->guard)->toBe('passportless-client');
+});
+
 it('scopes refresh family reuse revocation by guard and provider', function () {
     $user = PassportlessBindingUser::query()->create(['id' => 1]);
     $staff = PassportlessBindingStaff::query()->create(['id' => 1]);

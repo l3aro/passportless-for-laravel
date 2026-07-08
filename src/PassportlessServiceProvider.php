@@ -16,9 +16,9 @@ class PassportlessServiceProvider extends PackageServiceProvider
 {
     public function packageRegistered(): void
     {
-        $this->app->singleton(Passportless::class);
-        $this->app->singleton(PassportlessCookieManager::class);
-        $this->app->singleton(AuthBindingResolver::class);
+        $this->app->scoped(Passportless::class);
+        $this->app->scoped(PassportlessCookieManager::class);
+        $this->app->scoped(AuthBindingResolver::class);
     }
 
     public function packageBooted(): void
