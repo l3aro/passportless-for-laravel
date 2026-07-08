@@ -2,6 +2,14 @@
 
 All notable changes to Passportless will be documented in this file.
 
+## v1.1.1 - 2026-07-08
+
+### What's Changed
+
+* feat: multi-guard cookie configuration and refresh isolation by @l3aro in https://github.com/l3aro/passportless-for-laravel/pull/3
+
+**Full Changelog**: https://github.com/l3aro/passportless-for-laravel/compare/v1.1.0...v1.1.1
+
 ## v1.1.0 - 2026-07-07
 
 ### What's Changed
