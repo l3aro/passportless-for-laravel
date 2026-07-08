@@ -84,12 +84,12 @@ class Passportless
                 return null;
             }
 
-            if ($guard !== null && $binding->guard !== $guard) {
-                return null;
-            }
-
             if ($this->shouldRevokeFamily($lockedRefreshToken)) {
                 $this->revokeFamily($lockedRefreshToken->family_id, $binding);
+            }
+
+            if ($guard !== null && $binding->guard !== $guard) {
+                return null;
             }
 
             if ($lockedRefreshToken->isRotated()) {
