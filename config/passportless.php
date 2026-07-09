@@ -8,7 +8,6 @@ return [
     'sessions_table' => 'passportless_token_sessions',
 
     'guard' => 'passportless',
-    'provider' => null,
 
     'access_token' => [
         'expiration' => 15,
