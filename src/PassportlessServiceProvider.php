@@ -2,10 +2,11 @@
 
 namespace l3aro\Passportless;
 
-use Illuminate\Auth\RequestGuard;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use InvalidArgumentException;
 use l3aro\Passportless\Commands\PruneStaleCommand;
+use l3aro\Passportless\Guards\PassportlessRequestGuard;
 use l3aro\Passportless\Http\Middleware\CheckAbilities;
 use l3aro\Passportless\Http\Middleware\CheckForAnyAbility;
 use l3aro\Passportless\Support\AuthBindingResolver;
@@ -28,12 +29,28 @@ class PassportlessServiceProvider extends PackageServiceProvider
         $router->aliasMiddleware('abilities', CheckAbilities::class);
         $router->aliasMiddleware('ability', CheckForAnyAbility::class);
 
-        Auth::extend('passportless', function ($app, string $name, array $config): RequestGuard {
-            $guard = new RequestGuard(function ($request) use ($app, $name) {
+        Auth::extend('passportless', function ($app, string $name, array $config): PassportlessRequestGuard {
+            $guard = new PassportlessRequestGuard(function ($request) use ($app, $name) {
                 $plainTextToken = $request->bearerToken();
 
-                if (! $plainTextToken) {
-                    return null;
+                if (! is_string($plainTextToken) || $plainTextToken === '') {
+                    try {
+                        $cookies = $app->make(PassportlessCookieManager::class);
+                        $defaultGuard = (string) config('passportless.guard', 'passportless');
+                        $cookieManager = $name === $defaultGuard
+                            ? $cookies
+                            : $cookies->forGuard($name);
+                    } catch (InvalidArgumentException) {
+                        return null;
+                    }
+
+                    $cookieToken = $request->cookie($cookieManager->accessCookieName());
+
+                    if (! is_string($cookieToken) || $cookieToken === '') {
+                        return null;
+                    }
+
+                    $plainTextToken = rawurldecode($cookieToken);
                 }
 
                 $accessToken = $app->make(Passportless::class)->findToken($plainTextToken, $name);

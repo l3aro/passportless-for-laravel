@@ -179,9 +179,10 @@ For browser clients, issue access and refresh tokens as HTTP-only cookies with `
 Recommended flow:
 
 1. On login, create a token pair, attach access + refresh cookies, and send a CSRF cookie or response value for double-submit CSRF protection.
-2. Read the access token from the configured access cookie in host-owned middleware or routes, then protect APIs with `auth:passportless` (or a named Passportless guard).
+2. Protect APIs with `auth:passportless` (or a named Passportless guard). The guard authenticates from `Authorization: Bearer` first, then from the configured guard-scoped access cookie when no bearer token is present. It does not mutate the request `Authorization` header.
 3. When the access token expires, call a refresh route that reads only the refresh cookie, rotates the pair, returns replacement cookies, and rejects reused refresh tokens.
 4. Keep access and refresh cookies `HttpOnly`, use `Secure` over HTTPS, and choose the narrowest practical cookie path and domain.
+5. Apply host-owned CSRF protection to unsafe cookie-authenticated methods. CSRF validation is separate from guard authentication.
 
 ```php
 use Illuminate\Support\Str;
@@ -198,11 +199,16 @@ Route::post('/auth/login', function (PassportlessCookieManager $cookies) {
 });
 ```
 
-For a multi-guard browser app, scope the manager once per flow:
+For a multi-guard browser app, scope the manager once per flow and protect each route with its matching guard:
 
 ```php
 $cookies = app(PassportlessCookieManager::class)->forGuard('passportless-admin');
+
+Route::get('/admin/me', AdminProfileController::class)
+    ->middleware('auth:passportless-admin');
 ```
+
+`auth:passportless-admin` reads the `passportless-admin` access cookie profile. Cookie names and paths are delivery controls only; stored guard and provider snapshots remain authoritative for token identity.
 
 Read and clear cookies with the configured names:
 
