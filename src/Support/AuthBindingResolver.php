@@ -40,14 +40,9 @@ class AuthBindingResolver
     protected function defaultGuard(): string
     {
         $guard = config('passportless.guard', 'passportless');
-        $provider = config('passportless.provider');
 
         if (! is_string($guard) || $guard === '') {
             throw new InvalidArgumentException('Passportless guard must be a non-empty string.');
-        }
-
-        if ($provider !== null && (! is_string($provider) || $provider === '')) {
-            throw new InvalidArgumentException('Passportless provider must be null or a non-empty string.');
         }
 
         return $guard;
@@ -56,7 +51,7 @@ class AuthBindingResolver
     protected function bindingFromGuard(string $guard): AuthBinding
     {
         $guardConfig = $this->assertPassportlessGuard($guard);
-        $provider = config('passportless.provider') ?? ($guardConfig['provider'] ?? null);
+        $provider = $guardConfig['provider'] ?? null;
 
         if (! is_string($provider) || $provider === '') {
             throw new InvalidArgumentException("Passportless guard [{$guard}] must define a provider.");

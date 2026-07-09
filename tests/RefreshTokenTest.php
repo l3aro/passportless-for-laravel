@@ -139,7 +139,7 @@ it('rejects refresh tokens issued for a removed configured guard', function () {
     expect(app(Passportless::class)->refreshToken($pair->plainTextRefreshToken()))->toBeNull();
 });
 
-it('rejects access tokens issued for a different configured provider', function () {
+it('rejects access tokens issued before the guard provider changed', function () {
     $user = PassportlessRefreshTestUser::query()->create();
     $pair = $user->createTokenPair('iphone', ['orders:read']);
 
@@ -147,7 +147,7 @@ it('rejects access tokens issued for a different configured provider', function 
         'driver' => 'eloquent',
         'model' => PassportlessRefreshTestUser::class,
     ]);
-    config()->set('passportless.provider', 'other-provider');
+    config()->set('auth.guards.passportless.provider', 'other-provider');
 
     expect(app(Passportless::class)->findToken($pair->plainTextAccessToken()))->toBeNull();
 });

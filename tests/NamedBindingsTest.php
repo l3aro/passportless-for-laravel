@@ -275,13 +275,12 @@ it('validates malformed guard configuration', function (Closure $configure) {
     'wrong driver' => [function () {
         config()->set('auth.guards.passportless-client.driver', 'session');
     }],
-    'empty provider override' => [fn () => config()->set('passportless.provider', '')],
-    'unknown provider override' => [fn () => config()->set('passportless.provider', 'missing')],
+    'missing guard provider' => [fn () => config()->set('auth.guards.passportless-client.provider', null)],
+    'unknown guard provider' => [fn () => config()->set('auth.guards.passportless-client.provider', 'missing')],
 ]);
 
-it('keeps default config compatible and fails closed for null-provider rows', function () {
+it('derives the default provider from the configured guard and fails closed for null-provider rows', function () {
     config()->set('passportless.guard', 'passportless');
-    config()->set('passportless.provider', null);
     config()->set('auth.guards.passportless', [
         'driver' => 'passportless',
         'provider' => 'users',
@@ -329,7 +328,6 @@ function configurePassportlessGuards(): void
         'model' => PassportlessBindingStaff::class,
     ]);
     config()->set('passportless.guard', 'passportless-client');
-    config()->set('passportless.provider', null);
     Auth::forgetGuards();
 }
 
