@@ -61,7 +61,6 @@ return [
     'refresh_tokens_table' => 'passportless_refresh_tokens',
     'sessions_table' => 'passportless_token_sessions',
     'guard' => 'passportless',
-    'provider' => null,
     // ...
 ];
 ```
@@ -84,7 +83,7 @@ Define the Passportless guard and provider in `config/auth.php`:
 ],
 ```
 
-With the default config, `passportless.provider` may stay `null`; Passportless derives the provider from `auth.guards.passportless.provider`.
+Passportless derives the authenticatable provider from the selected Laravel guard, for example `auth.guards.passportless.provider`.
 
 ## Usage
 
