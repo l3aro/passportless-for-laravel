@@ -28,7 +28,7 @@ class ValidateCsrfCookie
             || ! is_string($headerToken)
             || $cookieToken === ''
             || $headerToken === ''
-            || ! hash_equals(rawurldecode($cookieToken), $headerToken)) {
+            || ! hash_equals($cookieToken, $headerToken)) {
             abort(419, 'CSRF token mismatch.');
         }
 

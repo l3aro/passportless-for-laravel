@@ -24,6 +24,19 @@ it('allows unsafe methods when csrf cookie matches x-csrf-token header', functio
     expect($response->getContent())->toBe('ok');
 });
 
+it('allows csrf values that contain percent-encoded text when both sources match', function () {
+    $cookies = app(PassportlessCookieManager::class);
+    $token = 'csrf%2Ftoken%25value';
+
+    $request = Request::create('/profile', 'POST');
+    $request->cookies->set($cookies->csrfCookieName(), $token);
+    $request->headers->set('X-CSRF-TOKEN', $token);
+
+    $response = app(ValidateCsrfCookie::class)->handle($request, fn () => response('ok'));
+
+    expect($response->getContent())->toBe('ok');
+});
+
 it('rejects missing csrf cookie with 419', function () {
     $request = Request::create('/profile', 'POST');
     $request->headers->set('X-CSRF-TOKEN', 'present');
