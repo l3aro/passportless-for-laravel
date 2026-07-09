@@ -170,11 +170,18 @@ Guards and providers are identity boundaries. Use policies or gates for current 
 
 Passportless validates that the token owner model matches the provider model for the resolved guard. A `User` cannot mint or authenticate a `passportless-admin` token when that guard points to `App\Models\Staff`.
 
-## Best practice: browser authentication with HTTP-only cookies
+## Browser cookies
 
-For browser clients, issue both the access token and refresh token as HTTP-only cookies with `PassportlessCookieManager`. Do not expose either token in JSON responses, JavaScript-readable cookies, local storage, or session storage. JavaScript should only receive non-secret response data and, when needed, a separate CSRF value.
+For browser clients, issue access and refresh tokens as HTTP-only cookies with `PassportlessCookieManager`. Do not put either token in JSON responses, JavaScript-readable cookies, local storage, or session storage. JavaScript should only receive non-secret response data and, when needed, a separate CSRF value.
 
-Use a short-lived access cookie for normal API requests and a refresh cookie for a dedicated refresh endpoint. On login, create a token pair, attach both cookies to the response, and send a CSRF cookie or response value for double-submit CSRF protection:
+`PassportlessCookieManager` is container-resolved as a singleton and returns Symfony `Cookie` objects only. It does not register routes, mutate responses, or queue cookies. The host owns login, refresh, logout, CORS, and CSRF handling.
+
+Recommended flow:
+
+1. On login, create a token pair, attach access + refresh cookies, and send a CSRF cookie or response value for double-submit CSRF protection.
+2. Read the access token from the configured access cookie in host-owned middleware or routes, then protect APIs with `auth:passportless` (or a named Passportless guard).
+3. When the access token expires, call a refresh route that reads only the refresh cookie, rotates the pair, returns replacement cookies, and rejects reused refresh tokens.
+4. Keep access and refresh cookies `HttpOnly`, use `Secure` over HTTPS, and choose the narrowest practical cookie path and domain.
 
 ```php
 use Illuminate\Support\Str;
@@ -191,33 +198,13 @@ Route::post('/auth/login', function (PassportlessCookieManager $cookies) {
 });
 ```
 
-Read the access token from the configured access cookie inside host-owned authentication middleware or routes, then let `auth:passportless` protect API routes. When the access token expires, call a refresh route that reads only the refresh cookie, rotates the token pair, returns replacement access and refresh cookies, and rejects reused refresh tokens.
-
-Keep access and refresh cookies `HttpOnly`, use `Secure` cookies over HTTPS, and choose the narrowest practical cookie path and domain. Same-origin browser clients can use Fetch `credentials: 'same-origin'`; cross-origin clients must use `credentials: 'include'`, explicit CORS origins, credential support, CSRF protection, and `SameSite=None` with `Secure=true` when cookies are cross-site.
-
-## Browser cookies
-
-Passportless provides `l3aro\Passportless\PassportlessCookieManager` for host-owned browser routes that want access, refresh, and CSRF cookies. The manager is container-resolved as a singleton and returns Symfony `Cookie` objects only; it does not register routes, mutate responses, or queue cookies.
+For a multi-guard browser app, scope the manager once per flow:
 
 ```php
-use l3aro\Passportless\PassportlessCookieManager;
-
-Route::post('/auth/login', function (PassportlessCookieManager $cookies) {
-    $pair = auth()->user()->createTokenPair('browser');
-    $csrf = Str::random(40);
-
-    return response()->json(['csrf_token' => $csrf])
-        ->withCookie($cookies->createAccessCookie($pair->plainTextAccessToken()))
-        ->withCookie($cookies->createRefreshCookie($pair->plainTextRefreshToken()))
-        ->withCookie($cookies->createCsrfCookie($csrf));
-});
+$cookies = app(PassportlessCookieManager::class)->forGuard('passportless-admin');
 ```
 
-The published `passportless.cookie` config owns cookie names, paths, domain, Secure flag, SameSite policy, and role-specific HttpOnly flags. Defaults are first-party browser defaults: access and refresh cookies are HttpOnly, the CSRF cookie is readable by JavaScript, SameSite is `lax`, access and CSRF paths are `/`, refresh path is `/api/auth/refresh`, and Secure is enabled when `APP_ENV=production`. Access cookie lifetime follows `passportless.access_token.expiration`; refresh and CSRF cookie lifetimes follow `passportless.refresh_token.expiration`. Deletion methods use the same configured name, path, domain, Secure, HttpOnly, and SameSite attributes as issuance.
-
-The manager rejects invalid or unsafe configuration when resolved. Access and refresh cookies must remain HttpOnly, cookie names must be unique, paths must be absolute, token lifetimes must be positive integers, and `SameSite=None` requires Secure cookies.
-
-Use configured names when reading cookies in host middleware or routes:
+Read and clear cookies with the configured names:
 
 ```php
 $request->cookie($cookies->refreshCookieName());
@@ -226,9 +213,26 @@ $cookies->forgetRefreshCookie();
 $cookies->forgetCsrfCookie();
 ```
 
-Same-origin browser clients generally do not need CORS and can use Fetch `credentials: 'same-origin'`. Cross-origin clients must use `credentials: 'include'`, explicit allowed origins, and host-owned Laravel CORS configuration with credential support; wildcard origins are not valid for credentialed CORS. Cross-site cookies must be configured with `SameSite=None` and `Secure=true`. CORS controls browser access to cross-origin responses and does not authenticate requests or replace CSRF protection.
+### Cookie configuration
 
-Laravel's `EncryptCookies` middleware encrypts response cookies and decrypts request cookies by default. Keep access and refresh tokens HttpOnly and unavailable to JavaScript. If your double-submit CSRF design requires JavaScript to read the CSRF cookie, configure the host application's cookie encryption exclusions for that CSRF cookie name; Passportless cannot infer that safely for every application.
+`passportless.cookie` owns names, paths, domain, Secure flag, SameSite policy, and role-specific HttpOnly flags. Defaults suit first-party browsers:
+
+- Access and refresh cookies are HttpOnly; the CSRF cookie is JavaScript-readable.
+- SameSite defaults to `lax`.
+- Access and CSRF paths default to `/`; refresh path defaults to `/api/auth/refresh`.
+- Secure is enabled when `APP_ENV=production` unless overridden.
+- Access cookie lifetime follows `passportless.access_token.expiration`; refresh and CSRF lifetimes follow `passportless.refresh_token.expiration`.
+- Forget methods use the same name, path, domain, Secure, HttpOnly, and SameSite attributes as issuance.
+
+Optional `passportless.cookie.guards` overrides those settings per guard. The unscoped manager uses `passportless.guard` as the fallback.
+
+The manager rejects invalid or unsafe configuration when resolved: access and refresh cookies must remain HttpOnly, cookie names must be unique, paths must be absolute, token lifetimes must be positive integers, and `SameSite=None` requires Secure cookies.
+
+### Browser deployment notes
+
+Same-origin clients can use Fetch `credentials: 'same-origin'`. Cross-origin clients must use `credentials: 'include'`, explicit allowed origins, and host-owned Laravel CORS with credential support; wildcard origins are invalid for credentialed CORS. Cross-site cookies need `SameSite=None` and `Secure=true`. CORS does not authenticate requests or replace CSRF protection.
+
+Laravel's `EncryptCookies` middleware encrypts response cookies and decrypts request cookies by default. Keep access and refresh tokens HttpOnly. If double-submit CSRF requires JavaScript to read the CSRF cookie, exclude that CSRF cookie name from encryption in the host app; Passportless cannot infer that safely for every application.
 
 ## Testing
 
