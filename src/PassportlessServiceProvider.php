@@ -9,6 +9,7 @@ use l3aro\Passportless\Commands\PruneStaleCommand;
 use l3aro\Passportless\Guards\PassportlessRequestGuard;
 use l3aro\Passportless\Http\Middleware\CheckAbilities;
 use l3aro\Passportless\Http\Middleware\CheckForAnyAbility;
+use l3aro\Passportless\Http\Middleware\ValidateCsrfCookie;
 use l3aro\Passportless\Support\AuthBindingResolver;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -28,6 +29,7 @@ class PassportlessServiceProvider extends PackageServiceProvider
 
         $router->aliasMiddleware('abilities', CheckAbilities::class);
         $router->aliasMiddleware('ability', CheckForAnyAbility::class);
+        $router->aliasMiddleware('passportless.csrf', ValidateCsrfCookie::class);
 
         Auth::extend('passportless', function ($app, string $name, array $config): PassportlessRequestGuard {
             $guard = new PassportlessRequestGuard(function ($request) use ($app, $name) {
