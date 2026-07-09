@@ -2,6 +2,15 @@
 
 All notable changes to Passportless will be documented in this file.
 
+## v1.1.2 - 2026-07-09
+
+### What's Changed
+
+* fix: derive provider from guard config, remove passportless.provider by @l3aro in https://github.com/l3aro/passportless-for-laravel/pull/4
+* docs: deduplicate and reorganize browser cookie sections in README by @l3aro in https://github.com/l3aro/passportless-for-laravel/pull/5
+
+**Full Changelog**: https://github.com/l3aro/passportless-for-laravel/compare/v1.1.1...v1.1.2
+
 ## v1.1.1 - 2026-07-08
 
 ### What's Changed
