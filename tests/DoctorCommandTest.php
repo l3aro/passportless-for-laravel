@@ -75,6 +75,20 @@ it('reports a provider model that does not use HasPassportless', function () {
         ->assertFailed();
 });
 
+it('does not retain errors between command invocations', function () {
+    config()->set('auth.providers.users.model', User::class);
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('FAIL: Passportless provider model ['.User::class.'] for guard [passportless] must use HasPassportless.')
+        ->assertFailed();
+
+    config()->set('auth.providers.users.model', PassportlessDoctorUser::class);
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('Passportless doctor found no configuration errors.')
+        ->assertSuccessful();
+});
+
 it('reports missing operational migration columns', function () {
     Schema::table('passportless_refresh_tokens', function (Blueprint $table) {
         $table->dropColumn('rotated_at');

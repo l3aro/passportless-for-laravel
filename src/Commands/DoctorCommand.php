@@ -25,6 +25,8 @@ class DoctorCommand extends Command
 
     public function handle(AuthBindingResolver $bindings, Router $router, Builder $schema): int
     {
+        $this->errors = [];
+
         $guards = $this->configuredGuards();
 
         $this->checkBindings($bindings, $guards);
