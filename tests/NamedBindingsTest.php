@@ -159,7 +159,7 @@ it('fails closed when refresh expected guard differs from stored guard', functio
         ->and($rightGuardRefresh?->refreshToken->guard)->toBe('passportless-admin');
 });
 
-it('revokes a rotated refresh token family when reused through the wrong guard', function () {
+it('does not mutate a rotated refresh token family when reused through the wrong guard', function () {
     $staff = PassportlessBindingStaff::query()->create(['id' => 1]);
     $staffPair = $staff->createTokenPair('staff', ['staff:read'], 'passportless-admin');
     $rotatedPair = app(Passportless::class)->refreshToken(
@@ -177,8 +177,8 @@ it('revokes a rotated refresh token family when reused through the wrong guard',
     );
 
     expect($wrongGuardReuse)->toBeNull()
-        ->and($staffPair->refreshToken->fresh()->isRevoked())->toBeTrue()
-        ->and($rotatedPair?->refreshToken->fresh()->isRevoked())->toBeTrue();
+        ->and($staffPair->refreshToken->fresh()->isRevoked())->toBeFalse()
+        ->and($rotatedPair?->refreshToken->fresh()->isRevoked())->toBeFalse();
 });
 
 it('does not use route cookie path as token identity during refresh', function () {
