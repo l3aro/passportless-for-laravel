@@ -96,6 +96,20 @@ it('is idempotent for missing invalid and wrong-guard tokens', function () {
         ->and(PersonalAccessToken::query()->find($pair->accessToken->accessToken->getKey())?->revoked_at)->not->toBeNull();
 });
 
+it('revokes a session from its active refresh token', function () {
+    $user = PassportlessRevokeTestUser::query()->create();
+    $pair = $user->createTokenPair('browser', ['orders:read']);
+
+    app(Passportless::class)->revokeCurrentSessionByRefreshToken(
+        $pair->plainTextRefreshToken(),
+        'passportless',
+    );
+
+    expect(TokenSession::query()->find($pair->session->getKey())?->revoked_at)->not->toBeNull()
+        ->and(PersonalAccessToken::query()->find($pair->accessToken->accessToken->getKey())?->revoked_at)->not->toBeNull()
+        ->and(RefreshToken::query()->find($pair->refreshToken->getKey())?->revoked_at)->not->toBeNull();
+});
+
 class PassportlessRevokeTestUser extends Tokenable
 {
     public $timestamps = false;

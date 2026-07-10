@@ -29,6 +29,15 @@ class SpaLogoutController extends Controller
             );
         }
 
+        $refreshToken = $request->cookie($cookies->refreshCookieName());
+
+        if (is_string($refreshToken) && $refreshToken !== '') {
+            $this->passportless->revokeCurrentSessionByRefreshToken(
+                rawurldecode($refreshToken),
+                $options->guard,
+            );
+        }
+
         return response()->json(['message' => 'Logged out.'])
             ->withCookie($cookies->forgetAccessCookie())
             ->withCookie($cookies->forgetRefreshCookie())
