@@ -10,11 +10,11 @@ class SpaAuthRouteOptions
 {
     /**
      * @param  array<int, string>  $abilities
-     * @param  callable|array{0: class-string|object, 1: string}|class-string  $authenticate
+     * @param  string  $authenticate  Cacheable class-string or Class@method descriptor.
      */
     public function __construct(
         public readonly string $guard,
-        public readonly mixed $authenticate,
+        public readonly string $authenticate,
         public readonly string $name,
         public readonly array $abilities,
         public readonly bool $csrf,
@@ -38,8 +38,8 @@ class SpaAuthRouteOptions
             throw new InvalidArgumentException('SPA auth route is missing a Passportless guard.');
         }
 
-        if ($authenticate === null) {
-            throw new InvalidArgumentException('SPA auth route is missing an authenticate callable.');
+        if (! is_string($authenticate) || $authenticate === '') {
+            throw new InvalidArgumentException('SPA auth route is missing a cacheable authenticate handler.');
         }
 
         if (! is_string($name) || $name === '') {

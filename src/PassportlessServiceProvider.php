@@ -10,6 +10,7 @@ use l3aro\Passportless\Guards\PassportlessRequestGuard;
 use l3aro\Passportless\Http\Middleware\CheckAbilities;
 use l3aro\Passportless\Http\Middleware\CheckForAnyAbility;
 use l3aro\Passportless\Http\Middleware\ValidateCsrfCookie;
+use l3aro\Passportless\Http\Middleware\ValidateSameOrigin;
 use l3aro\Passportless\Routing\SpaAuthRoutes;
 use l3aro\Passportless\Support\AuthBindingResolver;
 use Spatie\LaravelPackageTools\Package;
@@ -32,11 +33,12 @@ class PassportlessServiceProvider extends PackageServiceProvider
         $router->aliasMiddleware('abilities', CheckAbilities::class);
         $router->aliasMiddleware('ability', CheckForAnyAbility::class);
         $router->aliasMiddleware('passportless.csrf', ValidateCsrfCookie::class);
+        $router->aliasMiddleware('passportless.origin', ValidateSameOrigin::class);
 
         Route::macro('passportlessSpaAuth', function (
             string $prefix,
             string $guard,
-            mixed $authenticate,
+            string $authenticate,
             string $name = 'browser',
             ?array $abilities = null,
             array $middleware = [],

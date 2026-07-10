@@ -4,6 +4,7 @@ namespace l3aro\Passportless\Routing;
 
 use Illuminate\Routing\Router;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use l3aro\Passportless\Http\Controllers\SpaLoginController;
 use l3aro\Passportless\Http\Controllers\SpaLogoutController;
 use l3aro\Passportless\Http\Controllers\SpaRefreshController;
@@ -11,7 +12,7 @@ use l3aro\Passportless\Http\Controllers\SpaRefreshController;
 class SpaAuthRoutes
 {
     /**
-     * @param  callable|array{0: class-string|object, 1: string}|class-string  $authenticate
+     * @param  string  $authenticate  Cacheable class-string or Class@method descriptor.
      * @param  array<int, string>|null  $abilities
      * @param  array<int, string>  $middleware
      * @param  array<int, string>  $loginMiddleware
@@ -22,7 +23,7 @@ class SpaAuthRoutes
         Router $router,
         string $prefix,
         string $guard,
-        mixed $authenticate,
+        string $authenticate,
         string $name = 'browser',
         ?array $abilities = null,
         array $middleware = [],
@@ -33,6 +34,10 @@ class SpaAuthRoutes
         bool $csrf = true,
         ?string $domain = null,
     ): void {
+        if ($authenticate === '') {
+            throw new InvalidArgumentException('SPA auth route authenticate handler must be a non-empty class string or Class@method descriptor.');
+        }
+
         $abilities ??= config('passportless.abilities.default', ['*']);
         $as ??= 'passportless.'.Str::slug($guard, '_').'.';
         $defaults = [
@@ -58,10 +63,19 @@ class SpaAuthRoutes
                     ->defaults('passportlessCsrf', $defaults['passportlessCsrf']);
             };
 
+            $loginMiddlewareStack = $loginMiddleware;
+
+            if ($csrf) {
+                $loginMiddlewareStack = array_values(array_unique([
+                    ...$loginMiddlewareStack,
+                    'passportless.origin',
+                ]));
+            }
+
             $withDefaults(
                 $router->post('login', SpaLoginController::class)
                     ->name('login')
-                    ->middleware($loginMiddleware)
+                    ->middleware($loginMiddlewareStack)
             );
 
             $refreshMiddlewareStack = $refreshMiddleware;

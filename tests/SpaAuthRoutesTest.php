@@ -4,6 +4,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use l3aro\Passportless\Http\Middleware\ValidateSameOrigin;
 use l3aro\Passportless\Models\PersonalAccessToken;
 use l3aro\Passportless\Models\RefreshToken;
 use l3aro\Passportless\Models\Tokenable;
@@ -33,7 +34,7 @@ beforeEach(function () {
     config()->set('passportless.cookie.guards', [
         'passportless' => [
             'refresh' => [
-                'path' => '/auth/refresh',
+                'path' => '/auth',
             ],
         ],
         'passportless-admin' => [
@@ -108,34 +109,14 @@ beforeEach(function () {
     Route::passportlessSpaAuth(
         prefix: 'auth',
         guard: 'passportless',
-        authenticate: function (Request $request) {
-            $email = $request->input('email');
-
-            if ($email !== 'user@example.test') {
-                return null;
-            }
-
-            return PassportlessSpaUser::query()->firstOrCreate(
-                ['email' => $email],
-            );
-        },
+        authenticate: PassportlessSpaUserAuthenticator::class,
         abilities: ['demo:read'],
     );
 
     Route::passportlessSpaAuth(
         prefix: 'auth/admin',
         guard: 'passportless-admin',
-        authenticate: function (Request $request) {
-            $email = $request->input('email');
-
-            if ($email !== 'admin@example.test') {
-                return null;
-            }
-
-            return PassportlessSpaStaff::query()->firstOrCreate(
-                ['email' => $email],
-            );
-        },
+        authenticate: PassportlessSpaStaffAuthenticator::class,
         abilities: ['admin:read'],
     );
 });
@@ -198,6 +179,35 @@ it('rejects invalid credentials with generic login failure', function () {
     $this->postJson('/auth/login', ['email' => 'wrong@example.test'])
         ->assertUnauthorized()
         ->assertJsonPath('message', 'Invalid credentials.');
+});
+
+it('rejects cross-origin login requests', function () {
+    $this->withHeader('Origin', 'https://untrusted.example.test')
+        ->postJson('/auth/login', ['email' => 'user@example.test'])
+        ->assertForbidden();
+});
+
+it('accepts same-origin login requests with normalized origin casing and port', function () {
+    $request = Request::create(
+        'https://example.test/login',
+        'POST',
+        server: ['HTTP_ORIGIN' => 'https://EXAMPLE.TEST:443'],
+    );
+
+    $response = app(ValidateSameOrigin::class)->handle(
+        $request,
+        fn () => response()->noContent(),
+    );
+
+    expect($response->getStatusCode())->toBe(204);
+});
+
+it('rejects closure authentication handlers because routes must be cacheable', function () {
+    expect(fn () => Route::passportlessSpaAuth(
+        prefix: 'closure-auth',
+        guard: 'passportless',
+        authenticate: fn () => null,
+    ))->toThrow(TypeError::class);
 });
 
 it('rejects missing refresh cookies and csrf mismatches', function () {
@@ -263,17 +273,22 @@ it('isolates multi-guard refresh routes by expected guard', function () {
         ->assertOk();
 });
 
-it('logs out successfully when no access cookie is present', function () {
+it('revokes the session with the refresh cookie when no access cookie is present', function () {
     $login = $this->postJson('/auth/login', ['email' => 'user@example.test'])->assertOk();
     $cookies = app(PassportlessCookieManager::class);
+    $refresh = cookieFromResponse($login, $cookies->refreshCookieName());
     $csrf = cookieFromResponse($login, $cookies->csrfCookieName());
 
     $this->withCredentials()
+        ->withUnencryptedCookie($cookies->refreshCookieName(), plainCookieValue($refresh))
         ->withUnencryptedCookie($cookies->csrfCookieName(), plainCookieValue($csrf))
         ->withHeader('X-CSRF-TOKEN', $login->json('csrf_token'))
         ->postJson('/auth/logout')
         ->assertOk()
         ->assertJsonPath('message', 'Logged out.');
+
+    expect(TokenSession::query()->whereNotNull('revoked_at')->count())->toBe(1)
+        ->and(RefreshToken::query()->whereNotNull('revoked_at')->count())->toBe(1);
 });
 
 function cookieFromResponse($response, string $name): ?Cookie
@@ -310,3 +325,30 @@ class PassportlessSpaStaff extends Tokenable
     protected $table = 'passportless_spa_staff';
 }
 
+class PassportlessSpaUserAuthenticator
+{
+    public function __invoke(Request $request): ?PassportlessSpaUser
+    {
+        $email = $request->input('email');
+
+        if ($email !== 'user@example.test') {
+            return null;
+        }
+
+        return PassportlessSpaUser::query()->firstOrCreate(['email' => $email]);
+    }
+}
+
+class PassportlessSpaStaffAuthenticator
+{
+    public function __invoke(Request $request): ?PassportlessSpaStaff
+    {
+        $email = $request->input('email');
+
+        if ($email !== 'admin@example.test') {
+            return null;
+        }
+
+        return PassportlessSpaStaff::query()->firstOrCreate(['email' => $email]);
+    }
+}
