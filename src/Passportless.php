@@ -211,6 +211,73 @@ class Passportless
         return $refreshToken;
     }
 
+    public function revokeCurrentSession(string $plainTextAccessToken, string $guard): void
+    {
+        DB::transaction(function () use ($plainTextAccessToken, $guard): void {
+            $parsedToken = $this->parsePlainTextToken($plainTextAccessToken);
+
+            if ($parsedToken === null) {
+                return;
+            }
+
+            $accessToken = PersonalAccessToken::query()
+                ->whereKey($parsedToken['id'])
+                ->lockForUpdate()
+                ->first();
+
+            if (! $accessToken instanceof PersonalAccessToken) {
+                return;
+            }
+
+            if (! hash_equals($accessToken->token, hash('sha256', $parsedToken['token']))) {
+                return;
+            }
+
+            $binding = $this->resolveStoredContext($accessToken);
+
+            if (! $binding instanceof AuthBinding || $binding->guard !== $guard) {
+                return;
+            }
+
+            if ($accessToken->isExpired() || $accessToken->isRevoked()) {
+                return;
+            }
+
+            $session = $accessToken->session;
+
+            if (! $session instanceof TokenSession || ! $this->matchesConfiguredContext($session, $binding)) {
+                return;
+            }
+
+            $tokenable = $accessToken->tokenable;
+
+            if (! $tokenable instanceof Model || ! $this->tokenableMatchesBinding($tokenable, $binding)) {
+                return;
+            }
+
+            $sessionKey = $session->getKey();
+            $revokedAt = now();
+
+            if (! $session->isRevoked()) {
+                $session->forceFill(['revoked_at' => $revokedAt])->save();
+            }
+
+            PersonalAccessToken::query()
+                ->where('session_id', $sessionKey)
+                ->where('guard', $binding->guard)
+                ->where('provider', $binding->provider)
+                ->whereNull('revoked_at')
+                ->update(['revoked_at' => $revokedAt]);
+
+            RefreshToken::query()
+                ->where('session_id', $sessionKey)
+                ->where('guard', $binding->guard)
+                ->where('provider', $binding->provider)
+                ->whereNull('revoked_at')
+                ->update(['revoked_at' => $revokedAt]);
+        });
+    }
+
     /**
      * @return array{id: string, token: string}|null
      */
