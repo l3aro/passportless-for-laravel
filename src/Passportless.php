@@ -208,95 +208,9 @@ class Passportless
         return $refreshToken;
     }
 
-    public function revokeCurrentSession(string $plainTextAccessToken, string $guard): void
-    {
-        DB::transaction(function () use ($plainTextAccessToken, $guard): void {
-            $parsedToken = $this->parsePlainTextToken($plainTextAccessToken);
-
-            if ($parsedToken === null) {
-                return;
-            }
-
-            $accessToken = PersonalAccessToken::query()
-                ->whereKey($parsedToken['id'])
-                ->lockForUpdate()
-                ->first();
-
-            if (! $accessToken instanceof PersonalAccessToken) {
-                return;
-            }
-
-            if (! hash_equals($accessToken->token, hash('sha256', $parsedToken['token']))) {
-                return;
-            }
-
-            $binding = $this->resolveStoredContext($accessToken);
-
-            if (! $binding instanceof AuthBinding || $binding->guard !== $guard) {
-                return;
-            }
-
-            if ($accessToken->isExpired() || $accessToken->isRevoked()) {
-                return;
-            }
-
-            $session = $accessToken->session;
-
-            if (! $session instanceof TokenSession || ! $this->matchesConfiguredContext($session, $binding)) {
-                return;
-            }
-
-            $tokenable = $accessToken->tokenable;
-
-            if (! $tokenable instanceof Model || ! $this->tokenableMatchesBinding($tokenable, $binding)) {
-                return;
-            }
-
-            $this->revokeSession($session, $binding);
-        });
-    }
-
     public function revokeCurrentSessionByRefreshToken(string $plainTextRefreshToken, string $guard): void
     {
-        DB::transaction(function () use ($plainTextRefreshToken, $guard): void {
-            $parsedToken = $this->parsePlainTextToken($plainTextRefreshToken);
-
-            if ($parsedToken === null) {
-                return;
-            }
-
-            $refreshToken = RefreshToken::query()
-                ->whereKey($parsedToken['id'])
-                ->lockForUpdate()
-                ->first();
-
-            if (! $refreshToken instanceof RefreshToken
-                || ! hash_equals($refreshToken->token, hash('sha256', $parsedToken['token']))) {
-                return;
-            }
-
-            $binding = $this->resolveStoredContext($refreshToken);
-
-            if (! $binding instanceof AuthBinding
-                || $binding->guard !== $guard
-                || $refreshToken->isRotated()
-                || $refreshToken->isExpired()
-                || $refreshToken->isRevoked()) {
-                return;
-            }
-
-            $session = $refreshToken->session;
-            $tokenable = $refreshToken->tokenable;
-
-            if (! $session instanceof TokenSession
-                || ! $this->matchesConfiguredContext($session, $binding)
-                || ! $tokenable instanceof Model
-                || ! $this->tokenableMatchesBinding($tokenable, $binding)) {
-                return;
-            }
-
-            $this->revokeSession($session, $binding);
-        });
+        $this->revokeSessionFromCredential($plainTextRefreshToken, $guard, RefreshToken::class);
     }
 
     /**
