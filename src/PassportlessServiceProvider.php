@@ -4,6 +4,7 @@ namespace l3aro\Passportless;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use l3aro\Passportless\Commands\DoctorCommand;
 use l3aro\Passportless\Commands\PruneStaleCommand;
 use l3aro\Passportless\Guards\PassportlessAuthenticator;
 use l3aro\Passportless\Guards\PassportlessRequestGuard;
@@ -92,6 +93,7 @@ class PassportlessServiceProvider extends PackageServiceProvider
             ->name('passportless')
             ->hasConfigFile()
             ->hasMigration('create_passportless_tables')
+            ->hasCommand(DoctorCommand::class)
             ->hasCommand(PruneStaleCommand::class);
     }
 }
