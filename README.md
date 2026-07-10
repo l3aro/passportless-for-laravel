@@ -176,7 +176,7 @@ Passportless validates that the token owner model matches the provider model for
 
 For browser clients, issue access and refresh tokens as HTTP-only cookies with `PassportlessCookieManager`. Do not put either token in JSON responses, JavaScript-readable cookies, local storage, or session storage. JavaScript should only receive non-secret response data and, when needed, a separate CSRF value.
 
-`PassportlessCookieManager` is container-resolved as a singleton and returns Symfony `Cookie` objects only. It does not register routes, mutate responses, or queue cookies. The host owns login, refresh, logout, CORS, CSRF value generation, cookie attachment, route coverage, and cookie encryption exclusions.
+`PassportlessCookieManager` is container-resolved as a singleton and returns Symfony `Cookie` objects only. It does not mutate responses or queue cookies. By default the host owns login, refresh, logout, CORS, CSRF value generation, cookie attachment, route coverage, and cookie encryption exclusions. Hosts may opt into package SPA cookie routes with `Route::passportlessSpaAuth(...)`.
 
 Recommended flow:
 
@@ -185,6 +185,68 @@ Recommended flow:
 3. When the access token expires, call a refresh route that reads only the refresh cookie, rotates the pair, returns replacement cookies, and rejects reused refresh tokens.
 4. Keep access and refresh cookies `HttpOnly`, use `Secure` over HTTPS, and choose the narrowest practical cookie path and domain.
 5. Protect unsafe cookie-authenticated methods with CSRF validation. CSRF is separate from guard authentication.
+
+### Optional SPA cookie routes
+
+Register the common browser cookie endpoints with one call per guard. Routes are never auto-loaded.
+
+```php
+use App\Models\Staff;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
+
+Route::passportlessSpaAuth(
+    prefix: 'auth',
+    guard: 'passportless',
+    authenticate: function (Request $request) {
+        $user = User::query()->where('email', $request->input('email'))->first();
+
+        if ($user === null || ! Hash::check((string) $request->input('password'), $user->password)) {
+            return null;
+        }
+
+        return $user;
+    },
+    abilities: ['demo:read'],
+    loginMiddleware: ['throttle:login'],
+    refreshMiddleware: ['throttle:refresh'],
+);
+
+Route::passportlessSpaAuth(
+    prefix: 'auth/admin',
+    guard: 'passportless-admin',
+    authenticate: function (Request $request) {
+        $staff = Staff::query()->where('email', $request->input('email'))->first();
+
+        if ($staff === null || ! Hash::check((string) $request->input('password'), $staff->password)) {
+            return null;
+        }
+
+        return $staff;
+    },
+    abilities: ['admin:read'],
+);
+```
+
+Registered endpoints for each call:
+
+- `POST {prefix}/login`
+- `POST {prefix}/refresh`
+- `POST {prefix}/logout`
+
+Behavior:
+
+- Host `authenticate` owns credential verification and returns an authenticatable or `null`/`false`.
+- Login issues a token pair, attaches guard-scoped cookies, and returns fixed non-secret JSON (`token_type`, expirations, optional `csrf_token`, `session`).
+- Refresh reads the refresh cookie, enforces the expected guard, rotates the pair, and never returns plain access/refresh tokens in JSON.
+- Logout is cookie-only, calls `Passportless::revokeCurrentSession(...)`, and always forgets access/refresh/CSRF cookies.
+- When `csrf: true` (default), package CSRF middleware protects refresh and logout only.
+- Align `passportless.cookie.guards.{guard}.refresh.path` with the real refresh URI, including any outer `api` prefix.
+- Hosts still own CORS, `EncryptCookies` exclusions, and throttle middleware.
+
+Manual cookie construction remains available for custom response shapes:
 
 ```php
 use Illuminate\Support\Str;
