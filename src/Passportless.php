@@ -295,7 +295,7 @@ class Passportless
     /**
      * @param  class-string<PersonalAccessToken|RefreshToken>  $credentialClass
      */
-    private function revokeSessionFromCredential(string $plainTextCredential, string $guard, string $credentialClass): void
+    protected function revokeSessionFromCredential(string $plainTextCredential, string $guard, string $credentialClass): void
     {
         $parsedToken = $this->parsePlainTextToken($plainTextCredential);
 
@@ -342,7 +342,7 @@ class Passportless
     /**
      * @return array{TokenSession, Model, AuthBinding}|null
      */
-    private function validateLockedCredentialSession(mixed $credential, mixed $session, string $secret, ?string $guard): ?array
+    protected function validateLockedCredentialSession(mixed $credential, mixed $session, string $secret, ?string $guard): ?array
     {
         if ((! $credential instanceof PersonalAccessToken && ! $credential instanceof RefreshToken)
             || ! $session instanceof TokenSession
@@ -378,34 +378,34 @@ class Passportless
         return [$session, $credentialOwner, $binding];
     }
 
-    private function rawOwnerIdentityMatches(Model $credential, TokenSession $session): bool
+    protected function rawOwnerIdentityMatches(Model $credential, TokenSession $session): bool
     {
         return $credential->getAttribute('tokenable_type') === $session->getAttribute('tokenable_type')
             && (string) $credential->getAttribute('tokenable_id') === (string) $session->getAttribute('tokenable_id');
     }
 
-    private function credentialHashMatches(Model $credential, string $secret): bool
+    protected function credentialHashMatches(Model $credential, string $secret): bool
     {
         $hash = $credential->getAttribute('token');
 
         return is_string($hash) && hash_equals($hash, hash('sha256', $secret));
     }
 
-    private function credentialIsActive(PersonalAccessToken|RefreshToken $credential): bool
+    protected function credentialIsActive(PersonalAccessToken|RefreshToken $credential): bool
     {
         return ! $credential->isExpired()
             && ! $credential->isRevoked()
             && (! $credential instanceof RefreshToken || ! $credential->isRotated());
     }
 
-    private function credentialCanRevoke(PersonalAccessToken|RefreshToken $credential, bool $wasActiveBeforeSessionLock): bool
+    protected function credentialCanRevoke(PersonalAccessToken|RefreshToken $credential, bool $wasActiveBeforeSessionLock): bool
     {
         return ! $credential->isExpired()
             && ! $credential->isRevoked()
             && (! $credential instanceof RefreshToken || ! $credential->isRotated() || $wasActiveBeforeSessionLock);
     }
 
-    private function revokeValidatedSession(TokenSession $session, AuthBinding $binding): void
+    protected function revokeValidatedSession(TokenSession $session, AuthBinding $binding): void
     {
         $revokedAt = now();
 

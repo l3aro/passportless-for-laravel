@@ -4,7 +4,7 @@ namespace l3aro\Passportless\Support;
 
 use Illuminate\Database\Eloquent\Model;
 
-final readonly class AuthBinding
+readonly class AuthBinding
 {
     /**
      * @param  class-string<Model>  $model
