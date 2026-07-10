@@ -72,7 +72,7 @@ class Passportless
         }
 
         return DB::transaction(function () use ($parsedToken, $abilities, $guard): ?NewTokenPair {
-            $locatedRefreshToken = RefreshToken::query()->whereKey($parsedToken['id'])->lockForUpdate()->first();
+            $locatedRefreshToken = RefreshToken::query()->whereKey($parsedToken['id'])->first();
 
             if (! $locatedRefreshToken instanceof RefreshToken
                 || ! $this->credentialHashMatches($locatedRefreshToken, $parsedToken['token'])) {
@@ -85,10 +85,8 @@ class Passportless
                 return null;
             }
 
-            TokenSession::query()->whereKey($sessionId)->lockForUpdate()->first();
-
-            $lockedRefreshToken = RefreshToken::query()->whereKey($locatedRefreshToken->getKey())->lockForUpdate()->first();
             $lockedSession = TokenSession::query()->whereKey($sessionId)->lockForUpdate()->first();
+            $lockedRefreshToken = RefreshToken::query()->whereKey($locatedRefreshToken->getKey())->lockForUpdate()->first();
             $validated = $this->validateLockedCredentialSession(
                 $lockedRefreshToken,
                 $lockedSession,
@@ -277,7 +275,7 @@ class Passportless
         }
 
         DB::transaction(function () use ($parsedToken, $guard, $credentialClass): void {
-            $locatedCredential = $credentialClass::query()->whereKey($parsedToken['id'])->lockForUpdate()->first();
+            $locatedCredential = $credentialClass::query()->whereKey($parsedToken['id'])->first();
 
             if (! $locatedCredential instanceof Model
                 || ! is_a($locatedCredential, $credentialClass)
@@ -291,10 +289,9 @@ class Passportless
                 return;
             }
 
-            TokenSession::query()->whereKey($sessionId)->lockForUpdate()->first();
-
-            $lockedCredential = $credentialClass::query()->whereKey($locatedCredential->getKey())->lockForUpdate()->first();
+            $credentialWasActiveBeforeSessionLock = $this->credentialIsActive($locatedCredential);
             $lockedSession = TokenSession::query()->whereKey($sessionId)->lockForUpdate()->first();
+            $lockedCredential = $credentialClass::query()->whereKey($locatedCredential->getKey())->lockForUpdate()->first();
             $validated = $this->validateLockedCredentialSession(
                 $lockedCredential,
                 $lockedSession,
@@ -304,7 +301,7 @@ class Passportless
 
             if ($validated === null
                 || (! $lockedCredential instanceof PersonalAccessToken && ! $lockedCredential instanceof RefreshToken)
-                || ! $this->credentialIsActive($lockedCredential)) {
+                || ! $this->credentialCanRevoke($lockedCredential, $credentialWasActiveBeforeSessionLock)) {
                 return;
             }
 
@@ -370,6 +367,13 @@ class Passportless
         return ! $credential->isExpired()
             && ! $credential->isRevoked()
             && (! $credential instanceof RefreshToken || ! $credential->isRotated());
+    }
+
+    private function credentialCanRevoke(PersonalAccessToken|RefreshToken $credential, bool $wasActiveBeforeSessionLock): bool
+    {
+        return ! $credential->isExpired()
+            && ! $credential->isRevoked()
+            && (! $credential instanceof RefreshToken || ! $credential->isRotated() || $wasActiveBeforeSessionLock);
     }
 
     private function revokeValidatedSession(TokenSession $session, AuthBinding $binding): void
