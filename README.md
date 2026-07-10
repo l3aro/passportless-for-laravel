@@ -193,14 +193,13 @@ Register the common browser cookie endpoints with one call per guard. Routes are
 ```php
 use App\Models\Staff;
 use App\Models\User;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 
-Route::passportlessSpaAuth(
-    prefix: 'auth',
-    guard: 'passportless',
-    authenticate: function (Request $request) {
+final class AuthenticateUser
+{
+    public function __invoke(\Illuminate\Http\Request $request): ?User
+    {
         $user = User::query()->where('email', $request->input('email'))->first();
 
         if ($user === null || ! Hash::check((string) $request->input('password'), $user->password)) {
@@ -208,16 +207,13 @@ Route::passportlessSpaAuth(
         }
 
         return $user;
-    },
-    abilities: ['demo:read'],
-    loginMiddleware: ['throttle:login'],
-    refreshMiddleware: ['throttle:refresh'],
-);
+    }
+}
 
-Route::passportlessSpaAuth(
-    prefix: 'auth/admin',
-    guard: 'passportless-admin',
-    authenticate: function (Request $request) {
+final class AuthenticateStaff
+{
+    public function __invoke(\Illuminate\Http\Request $request): ?Staff
+    {
         $staff = Staff::query()->where('email', $request->input('email'))->first();
 
         if ($staff === null || ! Hash::check((string) $request->input('password'), $staff->password)) {
@@ -225,7 +221,22 @@ Route::passportlessSpaAuth(
         }
 
         return $staff;
-    },
+    }
+}
+
+Route::passportlessSpaAuth(
+    prefix: 'api/auth',
+    guard: 'passportless',
+    authenticate: AuthenticateUser::class,
+    abilities: ['demo:read'],
+    loginMiddleware: ['throttle:login'],
+    refreshMiddleware: ['throttle:refresh'],
+);
+
+Route::passportlessSpaAuth(
+    prefix: 'api/auth/admin',
+    guard: 'passportless-admin',
+    authenticate: AuthenticateStaff::class,
     abilities: ['admin:read'],
 );
 ```
@@ -238,12 +249,12 @@ Registered endpoints for each call:
 
 Behavior:
 
-- Host `authenticate` owns credential verification and returns an authenticatable or `null`/`false`.
+- Host `authenticate` must be a container-resolvable invokable class or `Class@method` string. It owns credential verification and returns an authenticatable or `null`/`false`; closures are not supported because routes must be cacheable.
 - Login issues a token pair, attaches guard-scoped cookies, and returns fixed non-secret JSON (`token_type`, expirations, optional `csrf_token`, `session`).
 - Refresh reads the refresh cookie, enforces the expected guard, rotates the pair, and never returns plain access/refresh tokens in JSON.
-- Logout is cookie-only, calls `Passportless::revokeCurrentSession(...)`, and always forgets access/refresh/CSRF cookies.
-- When `csrf: true` (default), package CSRF middleware protects refresh and logout only.
-- Align `passportless.cookie.guards.{guard}.refresh.path` with the real refresh URI, including any outer `api` prefix.
+- Logout revokes the session from either active access or refresh cookie, then forgets access/refresh/CSRF cookies.
+- When `csrf: true` (default), package same-origin middleware protects login and CSRF middleware protects refresh and logout.
+- Align `passportless.cookie.guards.{guard}.refresh.path` with the SPA route prefix so browsers send it to both refresh and logout; the default `/api/auth` matches the example.
 - Hosts still own CORS, `EncryptCookies` exclusions, and throttle middleware.
 
 Manual cookie construction remains available for custom response shapes:
@@ -318,10 +329,23 @@ $cookies->forgetCsrfCookie();
 
 - Access and refresh cookies are HttpOnly; the CSRF cookie is JavaScript-readable.
 - SameSite defaults to `lax`.
-- Access and CSRF paths default to `/`; refresh path defaults to `/api/auth/refresh`.
 - Secure is enabled when `APP_ENV=production` unless overridden.
 - Access cookie lifetime follows `passportless.access_token.expiration`; refresh and CSRF lifetimes follow `passportless.refresh_token.expiration`.
 - Forget methods use the same name, path, domain, Secure, HttpOnly, and SameSite attributes as issuance.
+
+#### Cookie paths
+
+Browsers only attach a cookie when the request URL path starts with the cookie's `path`. Defaults differ by role on purpose:
+
+| Cookie | Default path | Why |
+| --- | --- | --- |
+| Access | `/` | Guard auth reads it on every protected API route, so it must travel broadly. |
+| CSRF | `/` | JavaScript must read it and send `X-CSRF-TOKEN` on any browser write route (refresh, logout, profile, etc.). |
+| Refresh | `/api/auth` | Long-lived secret that mints new access tokens. Narrow path limits which endpoints receive it. Must cover both SPA `refresh` and `logout` under that prefix—not only `/api/auth/refresh`. |
+
+Do not set refresh path to `/` unless you accept sending the refresh token on every same-site request. Do not set it to `/api/auth/refresh` alone if logout also needs the refresh cookie when the access cookie is missing or expired.
+
+If SPA routes live elsewhere (for example `prefix: 'auth'`), override `passportless.cookie.guards.{guard}.refresh.path` to that same prefix so browsers send the cookie to both refresh and logout.
 
 Optional `passportless.cookie.guards` overrides those settings per guard. The unscoped manager uses `passportless.guard` as the fallback.
 
