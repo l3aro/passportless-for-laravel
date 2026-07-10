@@ -41,7 +41,7 @@ return [
 
         'refresh' => [
             'name' => 'passportless_refresh_token',
-            'path' => '/api/auth/refresh',
+            'path' => '/api/auth',
             'http_only' => true,
         ],
 

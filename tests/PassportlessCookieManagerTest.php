@@ -23,7 +23,7 @@ it('creates default access refresh and csrf cookies', function () {
         ->and($access->isHttpOnly())->toBeTrue()
         ->and($access->getSameSite())->toBe('lax')
         ->and($refresh->getValue())->toBe('refresh-token')
-        ->and($refresh->getPath())->toBe('/api/auth/refresh')
+        ->and($refresh->getPath())->toBe('/api/auth')
         ->and($refresh->isHttpOnly())->toBeTrue()
         ->and($csrf->getValue())->toBe('csrf-token')
         ->and($csrf->getPath())->toBe('/')

@@ -2,14 +2,16 @@
 
 namespace l3aro\Passportless;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
-use InvalidArgumentException;
+use Illuminate\Support\Facades\Route;
 use l3aro\Passportless\Commands\PruneStaleCommand;
+use l3aro\Passportless\Guards\PassportlessAuthenticator;
 use l3aro\Passportless\Guards\PassportlessRequestGuard;
 use l3aro\Passportless\Http\Middleware\CheckAbilities;
 use l3aro\Passportless\Http\Middleware\CheckForAnyAbility;
 use l3aro\Passportless\Http\Middleware\ValidateCsrfCookie;
+use l3aro\Passportless\Http\Middleware\ValidateSameOrigin;
+use l3aro\Passportless\Routing\SpaAuthRoutes;
 use l3aro\Passportless\Support\AuthBindingResolver;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -20,6 +22,7 @@ class PassportlessServiceProvider extends PackageServiceProvider
     {
         $this->app->scoped(Passportless::class);
         $this->app->scoped(PassportlessCookieManager::class);
+        $this->app->scoped(PassportlessAuthenticator::class);
         $this->app->scoped(AuthBindingResolver::class);
     }
 
@@ -30,52 +33,47 @@ class PassportlessServiceProvider extends PackageServiceProvider
         $router->aliasMiddleware('abilities', CheckAbilities::class);
         $router->aliasMiddleware('ability', CheckForAnyAbility::class);
         $router->aliasMiddleware('passportless.csrf', ValidateCsrfCookie::class);
+        $router->aliasMiddleware('passportless.origin', ValidateSameOrigin::class);
+
+        Route::macro('passportlessSpaAuth', function (
+            string $prefix,
+            string $guard,
+            string $authenticate,
+            string $name = 'browser',
+            ?array $abilities = null,
+            array $middleware = [],
+            array $loginMiddleware = [],
+            array $refreshMiddleware = [],
+            array $logoutMiddleware = [],
+            ?string $as = null,
+            bool $csrf = true,
+            ?string $domain = null,
+        ) use ($router): void {
+            SpaAuthRoutes::register(
+                router: $router,
+                prefix: $prefix,
+                guard: $guard,
+                authenticate: $authenticate,
+                name: $name,
+                abilities: $abilities,
+                middleware: $middleware,
+                loginMiddleware: $loginMiddleware,
+                refreshMiddleware: $refreshMiddleware,
+                logoutMiddleware: $logoutMiddleware,
+                as: $as,
+                csrf: $csrf,
+                domain: $domain,
+            );
+        });
 
         Auth::extend('passportless', function ($app, string $name, array $config): PassportlessRequestGuard {
-            $guard = new PassportlessRequestGuard(function ($request) use ($app, $name) {
-                $plainTextToken = $request->bearerToken();
+            $authenticator = $app->make(PassportlessAuthenticator::class);
 
-                if (! is_string($plainTextToken) || $plainTextToken === '') {
-                    try {
-                        $cookies = $app->make(PassportlessCookieManager::class);
-                        $defaultGuard = (string) config('passportless.guard', 'passportless');
-                        $cookieManager = $name === $defaultGuard
-                            ? $cookies
-                            : $cookies->forGuard($name);
-                    } catch (InvalidArgumentException) {
-                        return null;
-                    }
-
-                    $cookieToken = $request->cookie($cookieManager->accessCookieName());
-
-                    if (! is_string($cookieToken) || $cookieToken === '') {
-                        return null;
-                    }
-
-                    $plainTextToken = rawurldecode($cookieToken);
-                }
-
-                $accessToken = $app->make(Passportless::class)->findToken($plainTextToken, $name);
-
-                if (! $accessToken) {
-                    return null;
-                }
-
-                $tokenable = $accessToken->tokenable;
-
-                if (! $tokenable instanceof Model || ! method_exists($tokenable, 'withAccessToken')) {
-                    return null;
-                }
-
-                $lastUsedAt = $accessToken->last_used_at;
-                $updateInterval = (int) config('passportless.access_token.last_used_update_interval', 60);
-
-                if ($lastUsedAt === null || $lastUsedAt->copy()->addSeconds($updateInterval)->isPast()) {
-                    $accessToken->recordUsage(now());
-                }
-
-                return $tokenable->withAccessToken($accessToken);
-            }, $app['request'], Auth::createUserProvider($config['provider'] ?? null));
+            $guard = new PassportlessRequestGuard(
+                fn ($request) => $authenticator->authenticate($request, $name),
+                $app['request'],
+                Auth::createUserProvider($config['provider'] ?? null),
+            );
 
             $app->refresh('request', $guard, 'setRequest');
 
@@ -93,7 +91,6 @@ class PassportlessServiceProvider extends PackageServiceProvider
         $package
             ->name('passportless')
             ->hasConfigFile()
-            ->hasViews()
             ->hasMigration('create_passportless_tables')
             ->hasCommand(PruneStaleCommand::class);
     }
