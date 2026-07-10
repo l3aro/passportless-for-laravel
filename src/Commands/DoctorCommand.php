@@ -243,9 +243,9 @@ class DoctorCommand extends Command
     protected function checkMigrations(Builder $schema): void
     {
         $tables = [
-            (string) config('passportless.sessions_table', 'passportless_token_sessions') => ['id', 'tokenable_id', 'tokenable_type', 'name', 'guard', 'provider'],
-            (string) config('passportless.access_tokens_table', 'passportless_tokens') => ['id', 'tokenable_id', 'tokenable_type', 'session_id', 'name', 'token', 'abilities', 'guard', 'provider', 'expires_at'],
-            (string) config('passportless.refresh_tokens_table', 'passportless_refresh_tokens') => ['id', 'tokenable_id', 'tokenable_type', 'session_id', 'family_id', 'token', 'guard', 'provider', 'expires_at'],
+            (string) config('passportless.sessions_table', 'passportless_token_sessions') => ['id', 'tokenable_id', 'tokenable_type', 'name', 'guard', 'provider', 'ip_address', 'user_agent', 'last_used_at', 'revoked_at', 'created_at', 'updated_at'],
+            (string) config('passportless.access_tokens_table', 'passportless_tokens') => ['id', 'tokenable_id', 'tokenable_type', 'session_id', 'name', 'token', 'abilities', 'guard', 'provider', 'last_used_at', 'expires_at', 'revoked_at', 'created_at', 'updated_at'],
+            (string) config('passportless.refresh_tokens_table', 'passportless_refresh_tokens') => ['id', 'tokenable_id', 'tokenable_type', 'session_id', 'family_id', 'token', 'guard', 'provider', 'expires_at', 'rotated_at', 'revoked_at', 'created_at', 'updated_at'],
         ];
 
         foreach ($tables as $table => $columns) {

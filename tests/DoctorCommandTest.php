@@ -24,6 +24,11 @@ beforeEach(function () {
         $table->string('name');
         $table->string('guard')->nullable();
         $table->string('provider')->nullable();
+        $table->string('ip_address', 45)->nullable();
+        $table->text('user_agent')->nullable();
+        $table->timestamp('last_used_at')->nullable();
+        $table->timestamp('revoked_at')->nullable();
+        $table->timestamps();
     });
 
     Schema::create('passportless_tokens', function (Blueprint $table) {
@@ -35,7 +40,10 @@ beforeEach(function () {
         $table->json('abilities')->nullable();
         $table->string('guard')->nullable();
         $table->string('provider')->nullable();
+        $table->timestamp('last_used_at')->nullable();
         $table->timestamp('expires_at')->nullable();
+        $table->timestamp('revoked_at')->nullable();
+        $table->timestamps();
     });
 
     Schema::create('passportless_refresh_tokens', function (Blueprint $table) {
@@ -47,6 +55,9 @@ beforeEach(function () {
         $table->string('guard')->nullable();
         $table->string('provider')->nullable();
         $table->timestamp('expires_at');
+        $table->timestamp('rotated_at')->nullable();
+        $table->timestamp('revoked_at')->nullable();
+        $table->timestamps();
     });
 });
 
@@ -61,6 +72,16 @@ it('reports a provider model that does not use HasPassportless', function () {
 
     $this->artisan('passportless:doctor')
         ->expectsOutput('FAIL: Passportless provider model ['.User::class.'] for guard [passportless] must use HasPassportless.')
+        ->assertFailed();
+});
+
+it('reports missing operational migration columns', function () {
+    Schema::table('passportless_refresh_tokens', function (Blueprint $table) {
+        $table->dropColumn('rotated_at');
+    });
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('FAIL: Passportless table [passportless_refresh_tokens] is missing required column [rotated_at].')
         ->assertFailed();
 });
 
