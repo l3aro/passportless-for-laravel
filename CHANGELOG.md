@@ -2,6 +2,14 @@
 
 All notable changes to Passportless will be documented in this file.
 
+## v1.1.3 - 2026-07-10
+
+### What's Changed
+
+* Cookie auth, CSRF middleware, guard-scoped access cookies by @l3aro in https://github.com/l3aro/passportless-for-laravel/pull/6
+
+**Full Changelog**: https://github.com/l3aro/passportless-for-laravel/compare/v1.1.2...v1.1.3
+
 ## v1.1.2 - 2026-07-09
 
 ### What's Changed
