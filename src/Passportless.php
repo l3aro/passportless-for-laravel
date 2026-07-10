@@ -65,61 +65,48 @@ class Passportless
      */
     public function refreshToken(string $plainTextRefreshToken, ?array $abilities = null, ?string $guard = null): ?NewTokenPair
     {
-        $refreshToken = $this->findRefreshToken($plainTextRefreshToken);
+        $parsedToken = $this->parsePlainTextToken($plainTextRefreshToken);
 
-        if (! $refreshToken instanceof RefreshToken) {
+        if ($parsedToken === null) {
             return null;
         }
 
-        return DB::transaction(function () use ($refreshToken, $abilities, $guard): ?NewTokenPair {
-            $lockedRefreshToken = RefreshToken::query()->whereKey($refreshToken->getKey())->lockForUpdate()->first();
+        return DB::transaction(function () use ($parsedToken, $abilities, $guard): ?NewTokenPair {
+            $locatedRefreshToken = RefreshToken::query()->whereKey($parsedToken['id'])->first();
 
-            if (! $lockedRefreshToken instanceof RefreshToken) {
+            if (! $locatedRefreshToken instanceof RefreshToken
+                || ! $this->credentialHashMatches($locatedRefreshToken, $parsedToken['token'])) {
                 return null;
             }
 
-            $binding = $this->resolveStoredContext($lockedRefreshToken);
+            $sessionId = $locatedRefreshToken->getAttribute('session_id');
 
-            if (! $binding instanceof AuthBinding) {
+            if (! is_string($sessionId) && ! is_int($sessionId)) {
                 return null;
             }
+
+            $lockedSession = TokenSession::query()->whereKey($sessionId)->lockForUpdate()->first();
+            $lockedRefreshToken = RefreshToken::query()->whereKey($locatedRefreshToken->getKey())->lockForUpdate()->first();
+            $validated = $this->validateLockedCredentialSession(
+                $lockedRefreshToken,
+                $lockedSession,
+                $parsedToken['token'],
+                $guard,
+            );
+
+            if ($validated === null || $lockedRefreshToken->isExpired() || $lockedRefreshToken->isRevoked()) {
+                return null;
+            }
+
+            [$session, $tokenable, $binding] = $validated;
 
             if ($this->shouldRevokeFamily($lockedRefreshToken)) {
                 $this->revokeFamily($lockedRefreshToken->family_id, $binding);
-            }
 
-            if ($guard !== null && $binding->guard !== $guard) {
                 return null;
             }
 
             if ($lockedRefreshToken->isRotated()) {
-                return null;
-            }
-
-            if ($lockedRefreshToken->isExpired()) {
-                return null;
-            }
-
-            if ($lockedRefreshToken->isRevoked()) {
-                return null;
-            }
-
-            $session = $lockedRefreshToken->session;
-            $tokenable = $lockedRefreshToken->tokenable;
-
-            if (! $session instanceof TokenSession) {
-                return null;
-            }
-
-            if ($session->isRevoked()) {
-                return null;
-            }
-
-            if (! $this->matchesConfiguredContext($session, $binding)) {
-                return null;
-            }
-
-            if (! $tokenable instanceof Model || ! $this->tokenableMatchesBinding($tokenable, $binding)) {
                 return null;
             }
 
@@ -141,6 +128,16 @@ class Passportless
                 $binding,
             );
         });
+    }
+
+    public function revokeCurrentSession(string $plainTextAccessToken, string $guard): void
+    {
+        $this->revokeSessionFromCredential($plainTextAccessToken, $guard, PersonalAccessToken::class);
+    }
+
+    public function revokeSessionFromRefreshToken(string $plainTextRefreshToken, string $guard): void
+    {
+        $this->revokeSessionFromCredential($plainTextRefreshToken, $guard, RefreshToken::class);
     }
 
     public function findToken(string $plainTextToken, ?string $guard = null): ?PersonalAccessToken
@@ -379,6 +376,140 @@ class Passportless
             ->where('provider', $binding->provider)
             ->whereNull('revoked_at')
             ->update(['revoked_at' => now()]);
+    }
+
+    /**
+     * @param  class-string<PersonalAccessToken|RefreshToken>  $credentialClass
+     */
+    private function revokeSessionFromCredential(string $plainTextCredential, string $guard, string $credentialClass): void
+    {
+        $parsedToken = $this->parsePlainTextToken($plainTextCredential);
+
+        if ($parsedToken === null) {
+            return;
+        }
+
+        DB::transaction(function () use ($parsedToken, $guard, $credentialClass): void {
+            $locatedCredential = $credentialClass::query()->whereKey($parsedToken['id'])->first();
+
+            if (! $locatedCredential instanceof Model
+                || ! is_a($locatedCredential, $credentialClass)
+                || ! $this->credentialHashMatches($locatedCredential, $parsedToken['token'])) {
+                return;
+            }
+
+            $sessionId = $locatedCredential->getAttribute('session_id');
+
+            if (! is_string($sessionId) && ! is_int($sessionId)) {
+                return;
+            }
+
+            $credentialWasActiveBeforeSessionLock = $this->credentialIsActive($locatedCredential);
+            $lockedSession = TokenSession::query()->whereKey($sessionId)->lockForUpdate()->first();
+            $lockedCredential = $credentialClass::query()->whereKey($locatedCredential->getKey())->lockForUpdate()->first();
+            $validated = $this->validateLockedCredentialSession(
+                $lockedCredential,
+                $lockedSession,
+                $parsedToken['token'],
+                $guard,
+            );
+
+            if ($validated === null
+                || (! $lockedCredential instanceof PersonalAccessToken && ! $lockedCredential instanceof RefreshToken)
+                || ! $this->credentialCanRevoke($lockedCredential, $credentialWasActiveBeforeSessionLock)) {
+                return;
+            }
+
+            [$session, , $binding] = $validated;
+            $this->revokeValidatedSession($session, $binding);
+        });
+    }
+
+    /**
+     * @return array{TokenSession, Model, AuthBinding}|null
+     */
+    private function validateLockedCredentialSession(mixed $credential, mixed $session, string $secret, ?string $guard): ?array
+    {
+        if ((! $credential instanceof PersonalAccessToken && ! $credential instanceof RefreshToken)
+            || ! $session instanceof TokenSession
+            || ! $this->credentialHashMatches($credential, $secret)) {
+            return null;
+        }
+
+        $binding = $this->resolveStoredContext($credential);
+
+        if (! $binding instanceof AuthBinding
+            || ($guard !== null && $binding->guard !== $guard)
+            || (string) $credential->getAttribute('session_id') !== (string) $session->getKey()
+            || $session->isRevoked()
+            || ! $this->matchesConfiguredContext($session, $binding)
+            || ! $this->rawOwnerIdentityMatches($credential, $session)) {
+            return null;
+        }
+
+        $credentialOwner = $credential->tokenable;
+        $sessionOwner = $session->tokenable;
+
+        if (! $credentialOwner instanceof Model
+            || ! $sessionOwner instanceof Model
+            || ! $this->tokenableMatchesBinding($credentialOwner, $binding)
+            || ! $this->tokenableMatchesBinding($sessionOwner, $binding)
+            || $credentialOwner->getMorphClass() !== $this->stringOrNull($credential->getAttribute('tokenable_type'))
+            || $sessionOwner->getMorphClass() !== $this->stringOrNull($session->getAttribute('tokenable_type'))
+            || (string) $credentialOwner->getKey() !== (string) $credential->getAttribute('tokenable_id')
+            || (string) $sessionOwner->getKey() !== (string) $session->getAttribute('tokenable_id')) {
+            return null;
+        }
+
+        return [$session, $credentialOwner, $binding];
+    }
+
+    private function rawOwnerIdentityMatches(Model $credential, TokenSession $session): bool
+    {
+        return $credential->getAttribute('tokenable_type') === $session->getAttribute('tokenable_type')
+            && (string) $credential->getAttribute('tokenable_id') === (string) $session->getAttribute('tokenable_id');
+    }
+
+    private function credentialHashMatches(Model $credential, string $secret): bool
+    {
+        $hash = $credential->getAttribute('token');
+
+        return is_string($hash) && hash_equals($hash, hash('sha256', $secret));
+    }
+
+    private function credentialIsActive(PersonalAccessToken|RefreshToken $credential): bool
+    {
+        return ! $credential->isExpired()
+            && ! $credential->isRevoked()
+            && (! $credential instanceof RefreshToken || ! $credential->isRotated());
+    }
+
+    private function credentialCanRevoke(PersonalAccessToken|RefreshToken $credential, bool $wasActiveBeforeSessionLock): bool
+    {
+        return ! $credential->isExpired()
+            && ! $credential->isRevoked()
+            && (! $credential instanceof RefreshToken || ! $credential->isRotated() || $wasActiveBeforeSessionLock);
+    }
+
+    private function revokeValidatedSession(TokenSession $session, AuthBinding $binding): void
+    {
+        $revokedAt = now();
+
+        $session->forceFill(['revoked_at' => $revokedAt])->save();
+
+        PersonalAccessToken::query()
+            ->where('session_id', $session->getKey())
+            ->where('guard', $binding->guard)
+            ->where('provider', $binding->provider)
+            ->whereNull('revoked_at')
+            ->update(['revoked_at' => $revokedAt]);
+
+        RefreshToken::query()
+            ->where('session_id', $session->getKey())
+            ->where('guard', $binding->guard)
+            ->where('provider', $binding->provider)
+            ->whereNull('revoked_at')
+            ->update(['revoked_at' => $revokedAt]);
     }
 
     protected function matchesConfiguredContext(Model $model, AuthBinding $binding): bool
