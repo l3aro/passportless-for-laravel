@@ -75,6 +75,33 @@ it('reports a provider model that does not use HasPassportless', function () {
         ->assertFailed();
 });
 
+it('supports a bearer-only secondary Passportless guard', function () {
+    config()->set('auth.guards.passportless-admin', [
+        'driver' => 'passportless',
+        'provider' => 'users',
+    ]);
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('Passportless doctor found no configuration errors.')
+        ->assertSuccessful();
+});
+
+it('reports scalar guard cookie role overrides', function () {
+    config()->set('passportless.cookie.guards.passportless.access', 'invalid');
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('FAIL: Passportless access cookie configuration must be an array.')
+        ->assertFailed();
+});
+
+it('checks explicitly configured secondary cookie guard profiles', function () {
+    config()->set('passportless.cookie.guards.passportless-admin.refresh', 'invalid');
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('FAIL: Passportless refresh cookie configuration must be an array.')
+        ->assertFailed();
+});
+
 it('does not retain errors between command invocations', function () {
     config()->set('auth.providers.users.model', User::class);
 

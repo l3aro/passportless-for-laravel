@@ -30,7 +30,7 @@ class DoctorCommand extends Command
         $guards = $this->configuredGuards();
 
         $this->checkBindings($bindings, $guards);
-        $profiles = $this->checkCookieProfiles($guards);
+        $profiles = $this->checkCookieProfiles($this->configuredCookieGuards());
         $routes = $this->passportlessRoutes($router);
         $this->checkRouteCookiePaths($routes, $profiles);
         $this->checkCors($routes, $profiles);
@@ -77,6 +77,31 @@ class DoctorCommand extends Command
         if (! is_array($cookieGuards)) {
             $this->recordError('passportless.cookie.guards must be an array.');
         } else {
+            foreach (array_keys($cookieGuards) as $guard) {
+                if (is_string($guard) && $guard !== '') {
+                    $guards[] = $guard;
+                }
+            }
+        }
+
+        return array_values(array_unique($guards));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function configuredCookieGuards(): array
+    {
+        $guards = [];
+        $fallback = config('passportless.guard', 'passportless');
+
+        if (is_string($fallback) && $fallback !== '') {
+            $guards[] = $fallback;
+        }
+
+        $cookieGuards = config('passportless.cookie.guards', []);
+
+        if (is_array($cookieGuards)) {
             foreach (array_keys($cookieGuards) as $guard) {
                 if (is_string($guard) && $guard !== '') {
                     $guards[] = $guard;
@@ -337,6 +362,10 @@ class DoctorCommand extends Command
         }
 
         foreach (['access', 'refresh', 'csrf'] as $role) {
+            if (array_key_exists($role, $overrides) && ! is_array($overrides[$role])) {
+                throw new InvalidArgumentException("Passportless {$role} cookie configuration must be an array.");
+            }
+
             $base[$role] = array_replace(
                 is_array($base[$role] ?? null) ? $base[$role] : [],
                 is_array($overrides[$role] ?? null) ? $overrides[$role] : [],
