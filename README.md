@@ -124,6 +124,8 @@ Route::post('/orders', OrdersController::class)
     ->middleware(['auth:passportless', 'ability:orders:write,orders:admin']);
 ```
 
+For browser cookie write routes, optional double-submit CSRF middleware is available as `passportless.csrf`. See [Browser cookies](#browser-cookies).
+
 ## Multiple authenticatable models
 
 Use separate Passportless guards when one app issues tokens for separate identity stores, such as users and staff. `config/auth.php` owns guards, providers, and models:
@@ -174,14 +176,15 @@ Passportless validates that the token owner model matches the provider model for
 
 For browser clients, issue access and refresh tokens as HTTP-only cookies with `PassportlessCookieManager`. Do not put either token in JSON responses, JavaScript-readable cookies, local storage, or session storage. JavaScript should only receive non-secret response data and, when needed, a separate CSRF value.
 
-`PassportlessCookieManager` is container-resolved as a singleton and returns Symfony `Cookie` objects only. It does not register routes, mutate responses, or queue cookies. The host owns login, refresh, logout, CORS, and CSRF handling.
+`PassportlessCookieManager` is container-resolved as a singleton and returns Symfony `Cookie` objects only. It does not register routes, mutate responses, or queue cookies. The host owns login, refresh, logout, CORS, CSRF value generation, cookie attachment, route coverage, and cookie encryption exclusions.
 
 Recommended flow:
 
 1. On login, create a token pair, attach access + refresh cookies, and send a CSRF cookie or response value for double-submit CSRF protection.
-2. Read the access token from the configured access cookie in host-owned middleware or routes, then protect APIs with `auth:passportless` (or a named Passportless guard).
+2. Protect APIs with `auth:passportless` (or a named Passportless guard). The guard authenticates from `Authorization: Bearer` first, then from the configured guard-scoped access cookie when no bearer token is present. It does not mutate the request `Authorization` header.
 3. When the access token expires, call a refresh route that reads only the refresh cookie, rotates the pair, returns replacement cookies, and rejects reused refresh tokens.
 4. Keep access and refresh cookies `HttpOnly`, use `Secure` over HTTPS, and choose the narrowest practical cookie path and domain.
+5. Protect unsafe cookie-authenticated methods with CSRF validation. CSRF is separate from guard authentication.
 
 ```php
 use Illuminate\Support\Str;
@@ -198,11 +201,45 @@ Route::post('/auth/login', function (PassportlessCookieManager $cookies) {
 });
 ```
 
-For a multi-guard browser app, scope the manager once per flow:
+### Optional CSRF middleware
+
+Passportless ships optional route middleware alias `passportless.csrf` for double-submit CSRF validation of browser cookie flows. It is opt-in. Host apps that already use Laravel session CSRF or another strategy may keep their existing protection.
+
+Behavior:
+
+- Skips safe methods: `GET`, `HEAD`, and `OPTIONS`.
+- Compares the configured CSRF cookie to the `X-CSRF-TOKEN` header with timing-safe comparison.
+- Accepts an optional guard parameter and uses `PassportlessCookieManager::forGuard($guard)` when supplied.
+- Fails closed with HTTP `419` and a generic mismatch message when either value is missing, empty, or mismatched.
+
+Single-guard browser write routes:
+
+```php
+Route::middleware(['passportless.csrf', 'auth:passportless'])->post('/profile', ...);
+```
+
+Multi-guard browser write routes:
+
+```php
+Route::middleware(['passportless.csrf:passportless-admin', 'auth:passportless-admin'])
+    ->post('/admin/profile', ...);
+```
+
+The middleware does not authenticate users, rotate tokens, attach cookies, or generate CSRF values. Host applications still own CSRF value generation, cookie attachment, CORS, route coverage, middleware ordering, and excluding the JavaScript-readable CSRF cookie from encryption when needed.
+
+For a multi-guard browser app, scope the manager once per flow and protect each route with its matching guard:
 
 ```php
 $cookies = app(PassportlessCookieManager::class)->forGuard('passportless-admin');
+
+Route::get('/admin/me', AdminProfileController::class)
+    ->middleware('auth:passportless-admin');
+
+Route::post('/admin/profile', AdminProfileController::class)
+    ->middleware(['passportless.csrf:passportless-admin', 'auth:passportless-admin']);
 ```
+
+`auth:passportless-admin` reads the `passportless-admin` access cookie profile. Cookie names and paths are delivery controls only; stored guard and provider snapshots remain authoritative for token identity.
 
 Read and clear cookies with the configured names:
 
