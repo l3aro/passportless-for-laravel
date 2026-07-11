@@ -3,6 +3,7 @@
 namespace l3aro\Passportless;
 
 use DateTimeInterface;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -133,6 +134,43 @@ class Passportless
     public function revokeCurrentSession(string $plainTextAccessToken, string $guard): void
     {
         $this->revokeSessionFromCredential($plainTextAccessToken, $guard, PersonalAccessToken::class);
+    }
+
+    public function logoutCurrentSession(string $plainTextAccessToken, string $guard): void
+    {
+        $this->revokeCurrentSession($plainTextAccessToken, $guard);
+    }
+
+    public function logoutAllSessions(Authenticatable $user, string $guard): void
+    {
+        $binding = $this->authBindings->resolveForGuard($guard);
+
+        if (! $user instanceof Model || ! $this->tokenableMatchesBinding($user, $binding)) {
+            return;
+        }
+
+        DB::transaction(function () use ($user, $binding): void {
+            $sessions = TokenSession::query()
+                ->where('tokenable_type', $user->getMorphClass())
+                ->where('tokenable_id', $user->getKey())
+                ->where('guard', $binding->guard)
+                ->where('provider', $binding->provider)
+                ->whereNull('revoked_at')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($sessions as $session) {
+                if (! $this->matchesConfiguredContext($session, $binding)
+                    || $session->isRevoked()
+                    || $session->getAttribute('tokenable_type') !== $user->getMorphClass()
+                    || (string) $session->getAttribute('tokenable_id') !== (string) $user->getKey()) {
+                    continue;
+                }
+
+                $this->revokeValidatedSession($session, $binding);
+            }
+        });
     }
 
     public function revokeSessionFromRefreshToken(string $plainTextRefreshToken, string $guard): void
