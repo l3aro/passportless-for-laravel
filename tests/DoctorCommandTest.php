@@ -102,6 +102,28 @@ it('checks explicitly configured secondary cookie guard profiles', function () {
         ->assertFailed();
 });
 
+it('reports cookie guard profiles with invalid keys', function () {
+    config()->set('passportless.cookie.guards', [0 => []]);
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('FAIL: passportless.cookie.guards keys must be non-empty strings.')
+        ->assertFailed();
+});
+
+it('reports SPA route guards without a configured cookie profile', function () {
+    config()->set('passportless.cookie.guards', ['passportless' => []]);
+
+    Route::passportlessSpaAuth(
+        prefix: 'admin/auth',
+        guard: 'passportless-admin',
+        authenticate: PassportlessDoctorUser::class,
+    );
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('FAIL: Passportless cookie guard [passportless-admin] is not configured.')
+        ->assertFailed();
+});
+
 it('does not retain errors between command invocations', function () {
     config()->set('auth.providers.users.model', User::class);
 
@@ -123,6 +145,14 @@ it('reports missing operational migration columns', function () {
 
     $this->artisan('passportless:doctor')
         ->expectsOutput('FAIL: Passportless table [passportless_refresh_tokens] is missing required column [rotated_at].')
+        ->assertFailed();
+});
+
+it('reports duplicate Passportless migration table mappings', function () {
+    config()->set('passportless.access_tokens_table', 'passportless_token_sessions');
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('FAIL: Passportless migration table [passportless_token_sessions] is configured for multiple Passportless models.')
         ->assertFailed();
 });
 

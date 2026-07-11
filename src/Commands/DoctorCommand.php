@@ -27,11 +27,12 @@ class DoctorCommand extends Command
     {
         $this->errors = [];
 
-        $guards = $this->configuredGuards();
+        $routes = $this->passportlessRoutes($router);
+        $cookieGuards = $this->configuredCookieGuards($routes);
+        $guards = $this->configuredGuards($cookieGuards);
 
         $this->checkBindings($bindings, $guards);
-        $profiles = $this->checkCookieProfiles($this->configuredCookieGuards());
-        $routes = $this->passportlessRoutes($router);
+        $profiles = $this->checkCookieProfiles($cookieGuards);
         $this->checkRouteCookiePaths($routes, $profiles);
         $this->checkCors($routes, $profiles);
         $this->checkMigrations($schema);
@@ -51,7 +52,7 @@ class DoctorCommand extends Command
     /**
      * @return array<int, string>
      */
-    protected function configuredGuards(): array
+    protected function configuredGuards(array $cookieGuards): array
     {
         $guards = [];
         $default = config('passportless.guard', 'passportless');
@@ -72,17 +73,7 @@ class DoctorCommand extends Command
             }
         }
 
-        $cookieGuards = config('passportless.cookie.guards', []);
-
-        if (! is_array($cookieGuards)) {
-            $this->recordError('passportless.cookie.guards must be an array.');
-        } else {
-            foreach (array_keys($cookieGuards) as $guard) {
-                if (is_string($guard) && $guard !== '') {
-                    $guards[] = $guard;
-                }
-            }
-        }
+        $guards = [...$guards, ...$cookieGuards];
 
         return array_values(array_unique($guards));
     }
@@ -90,7 +81,7 @@ class DoctorCommand extends Command
     /**
      * @return array<int, string>
      */
-    protected function configuredCookieGuards(): array
+    protected function configuredCookieGuards(array $routes): array
     {
         $guards = [];
         $fallback = config('passportless.guard', 'passportless');
@@ -101,11 +92,31 @@ class DoctorCommand extends Command
 
         $cookieGuards = config('passportless.cookie.guards', []);
 
-        if (is_array($cookieGuards)) {
-            foreach (array_keys($cookieGuards) as $guard) {
-                if (is_string($guard) && $guard !== '') {
-                    $guards[] = $guard;
+        if (! is_array($cookieGuards)) {
+            $this->recordError('passportless.cookie.guards must be an array.');
+        } else {
+            foreach ($cookieGuards as $guard => $profile) {
+                if (! is_string($guard) || $guard === '') {
+                    $this->recordError('passportless.cookie.guards keys must be non-empty strings.');
+
+                    continue;
                 }
+
+                if (! is_array($profile)) {
+                    $this->recordError("Passportless cookie guard configuration for guard [{$guard}] must be an array.");
+
+                    continue;
+                }
+
+                $guards[] = $guard;
+            }
+        }
+
+        foreach ($routes as $route) {
+            $guard = $route->defaults['passportlessGuard'] ?? null;
+
+            if (is_string($guard) && $guard !== '') {
+                $guards[] = $guard;
             }
         }
 
@@ -280,12 +291,20 @@ class DoctorCommand extends Command
     protected function checkMigrations(Builder $schema): void
     {
         $tables = [
-            (string) config('passportless.sessions_table', 'passportless_token_sessions') => ['id', 'tokenable_id', 'tokenable_type', 'name', 'guard', 'provider', 'ip_address', 'user_agent', 'last_used_at', 'revoked_at', 'created_at', 'updated_at'],
-            (string) config('passportless.access_tokens_table', 'passportless_tokens') => ['id', 'tokenable_id', 'tokenable_type', 'session_id', 'name', 'token', 'abilities', 'guard', 'provider', 'last_used_at', 'expires_at', 'revoked_at', 'created_at', 'updated_at'],
-            (string) config('passportless.refresh_tokens_table', 'passportless_refresh_tokens') => ['id', 'tokenable_id', 'tokenable_type', 'session_id', 'family_id', 'token', 'guard', 'provider', 'expires_at', 'rotated_at', 'revoked_at', 'created_at', 'updated_at'],
+            [(string) config('passportless.sessions_table', 'passportless_token_sessions'), ['id', 'tokenable_id', 'tokenable_type', 'name', 'guard', 'provider', 'ip_address', 'user_agent', 'last_used_at', 'revoked_at', 'created_at', 'updated_at']],
+            [(string) config('passportless.access_tokens_table', 'passportless_tokens'), ['id', 'tokenable_id', 'tokenable_type', 'session_id', 'name', 'token', 'abilities', 'guard', 'provider', 'last_used_at', 'expires_at', 'revoked_at', 'created_at', 'updated_at']],
+            [(string) config('passportless.refresh_tokens_table', 'passportless_refresh_tokens'), ['id', 'tokenable_id', 'tokenable_type', 'session_id', 'family_id', 'token', 'guard', 'provider', 'expires_at', 'rotated_at', 'revoked_at', 'created_at', 'updated_at']],
         ];
 
-        foreach ($tables as $table => $columns) {
+        $configuredTables = array_column($tables, 0);
+        $duplicateTables = [];
+
+        foreach ($tables as [$table, $columns]) {
+            if (count(array_keys($configuredTables, $table, true)) > 1 && ! in_array($table, $duplicateTables, true)) {
+                $this->recordError("Passportless migration table [{$table}] is configured for multiple Passportless models.");
+                $duplicateTables[] = $table;
+            }
+
             try {
                 if (! $schema->hasTable($table)) {
                     $this->recordError("Required Passportless migration table [{$table}] does not exist.");
