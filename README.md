@@ -126,6 +126,25 @@ Route::post('/orders', OrdersController::class)
 
 For browser cookie write routes, optional double-submit CSRF middleware is available as `passportless.csrf`. See [Browser cookies](#browser-cookies).
 
+### Session revocation and logout
+
+Use the `Passportless` facade when a host route or application service needs to revoke one session or all sessions for an owner. Current-session operations revoke the session and every active access and refresh token in it; they do not revoke only the presented credential.
+
+```php
+use l3aro\Passportless\Facades\Passportless;
+
+// Log out the device that presented this access token.
+Passportless::logoutCurrentSession($plainTextAccessToken, 'passportless');
+
+// A cookie-only logout route can revoke from its refresh credential.
+Passportless::revokeSessionFromRefreshToken($plainTextRefreshToken, 'passportless');
+
+// Log this user out from every session for this guard/provider binding.
+Passportless::logoutAllSessions($user, 'passportless');
+```
+
+`logoutCurrentSession` is an alias for `revokeCurrentSession`. `revokeCurrentSessionByRefreshToken` is an alias for `revokeSessionFromRefreshToken` and is useful when naming a cookie-only logout flow. Credential-based methods validate the supplied credential and guard, preserve guard/provider isolation, and safely no-op for invalid, expired, revoked, or mismatched credentials. `logoutAllSessions` validates that the supplied user matches the guard provider and revokes only sessions in that binding.
+
 ## Multiple authenticatable models
 
 Use separate Passportless guards when one app issues tokens for separate identity stores, such as users and staff. `config/auth.php` owns guards, providers, and models:
@@ -253,7 +272,7 @@ Behavior:
 - Login issues a token pair, attaches guard-scoped cookies, and returns fixed non-secret JSON (`token_type`, expirations, optional `csrf_token`, `session`).
 - Refresh reads the refresh cookie, enforces the expected guard, rotates the pair, and never returns plain access/refresh tokens in JSON.
 - Logout revokes the session from either active access or refresh cookie, then forgets access/refresh/CSRF cookies.
-- When `csrf: true` (default), package same-origin middleware protects login and CSRF middleware protects refresh and logout.
+- When `csrf: true` (default), package same-origin middleware rejects a present mismatched `Origin` header on login, and CSRF middleware protects refresh and logout.
 - Align `passportless.cookie.guards.{guard}.refresh.path` with the SPA route prefix so browsers send it to both refresh and logout; the default `/api/auth` matches the example.
 - Hosts still own CORS, `EncryptCookies` exclusions, and throttle middleware.
 
@@ -299,6 +318,17 @@ Route::middleware(['passportless.csrf:passportless-admin', 'auth:passportless-ad
 ```
 
 The middleware does not authenticate users, rotate tokens, attach cookies, or generate CSRF values. Host applications still own CSRF value generation, cookie attachment, CORS, route coverage, middleware ordering, and excluding the JavaScript-readable CSRF cookie from encryption when needed.
+
+### Same-origin middleware
+
+`passportless.origin` rejects requests whose `Origin` scheme, host, or port differs from the request origin. It is applied automatically to SPA login routes when `csrf: true`; apply it to custom same-origin routes when needed:
+
+```php
+Route::post('/auth/login', AuthenticateUserController::class)
+    ->middleware('passportless.origin');
+```
+
+It does not replace CSRF validation. Requests without an `Origin` header continue to the route.
 
 For a multi-guard browser app, scope the manager once per flow and protect each route with its matching guard:
 
@@ -356,6 +386,16 @@ The manager rejects invalid or unsafe configuration when resolved: access and re
 Same-origin clients can use Fetch `credentials: 'same-origin'`. Cross-origin clients must use `credentials: 'include'`, explicit allowed origins, and host-owned Laravel CORS with credential support; wildcard origins are invalid for credentialed CORS. Cross-site cookies need `SameSite=None` and `Secure=true`. CORS does not authenticate requests or replace CSRF protection.
 
 Laravel's `EncryptCookies` middleware encrypts response cookies and decrypts request cookies by default. Keep access and refresh tokens HttpOnly. If double-submit CSRF requires JavaScript to read the CSRF cookie, exclude that CSRF cookie name from encryption in the host app; Passportless cannot infer that safely for every application.
+
+## Diagnostics
+
+Run the browser-authentication configuration audit after publishing configuration and migrations, and whenever guard, cookie, SPA route, or CORS settings change:
+
+```bash
+php artisan passportless:doctor
+```
+
+The command exits nonzero when it reports configuration errors or security recommendations. It checks Passportless guard/provider bindings and model traits, effective cookie profiles, refresh-cookie path coverage for registered SPA refresh and logout routes, applicable credentialed CORS settings, and required Passportless tables and columns. It reports problems only; it never modifies application configuration, routes, or database schema.
 
 ## Testing
 
