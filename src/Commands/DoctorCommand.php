@@ -7,6 +7,7 @@ use Illuminate\Database\Schema\Builder;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use l3aro\Passportless\Concerns\HasPassportless;
 use l3aro\Passportless\Http\Controllers\SpaLogoutController;
@@ -275,17 +276,63 @@ class DoctorCommand extends Command
             $this->recordError('Credentialed CORS must not use a wildcard allowed origin.');
         }
 
+        if ($supportsCredentials !== true || ! $this->hasSameSiteNoneProfile($profiles)) {
+            return;
+        }
+
+        $paths = config('cors.paths', []);
+
+        foreach ($routes as $route) {
+            if (! $this->corsPathsCoverRoute($paths, $route)) {
+                $this->recordError("Passportless route [/{$route->uri()}] is not covered by cors.paths.");
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>>  $profiles
+     */
+    protected function hasSameSiteNoneProfile(array $profiles): bool
+    {
         foreach ($profiles as $profile) {
-            if (strtolower((string) ($profile['same_site'] ?? '')) !== 'none') {
+            if (strtolower((string) ($profile['same_site'] ?? '')) === 'none') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function corsPathsCoverRoute(mixed $configuredPaths, Route $route): bool
+    {
+        if (! is_array($configuredPaths)) {
+            return false;
+        }
+
+        $host = $route->domain() ?? parse_url((string) config('app.url', ''), PHP_URL_HOST);
+        $paths = is_string($host) && isset($configuredPaths[$host])
+            ? $configuredPaths[$host]
+            : array_filter($configuredPaths, is_string(...));
+
+        if (! is_array($paths)) {
+            return false;
+        }
+
+        $uri = trim($route->uri(), '/');
+
+        foreach ($paths as $path) {
+            if (! is_string($path)) {
                 continue;
             }
 
-            if ($supportsCredentials !== true) {
-                $this->recordError('Cross-origin cookie auth requires cors.supports_credentials=true.');
+            $path = $path === '/' ? '/' : trim($path, '/');
 
-                return;
+            if (Str::is($path, $uri)) {
+                return true;
             }
         }
+
+        return false;
     }
 
     protected function checkMigrations(Builder $schema): void

@@ -217,3 +217,78 @@ it('reports credentialed CORS with a catch-all origin pattern', function () {
         ->expectsOutput('FAIL: Credentialed CORS must not use a wildcard allowed origin.')
         ->assertFailed();
 });
+
+it('does not require CORS for same-origin SameSite=None cookie auth', function () {
+    config()->set('passportless.cookie.same_site', 'none');
+    config()->set('passportless.cookie.secure', true);
+    config()->set('passportless.cookie.refresh.path', '/auth');
+
+    Route::passportlessSpaAuth(
+        prefix: 'auth',
+        guard: 'passportless',
+        authenticate: PassportlessDoctorUser::class,
+    );
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('Passportless doctor found no configuration errors.')
+        ->assertSuccessful();
+});
+
+it('reports credentialed CORS paths that do not cover Passportless routes', function () {
+    config()->set('passportless.cookie.same_site', 'none');
+    config()->set('passportless.cookie.secure', true);
+    config()->set('passportless.cookie.refresh.path', '/auth');
+    config()->set('cors.supports_credentials', true);
+    config()->set('cors.paths', ['api/*']);
+
+    Route::passportlessSpaAuth(
+        prefix: 'auth',
+        guard: 'passportless',
+        authenticate: PassportlessDoctorUser::class,
+    );
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('FAIL: Passportless route [/auth/login] is not covered by cors.paths.')
+        ->expectsOutput('FAIL: Passportless route [/auth/refresh] is not covered by cors.paths.')
+        ->expectsOutput('FAIL: Passportless route [/auth/logout] is not covered by cors.paths.')
+        ->assertFailed();
+});
+
+it('accepts credentialed CORS paths that cover Passportless routes', function () {
+    config()->set('passportless.cookie.same_site', 'none');
+    config()->set('passportless.cookie.secure', true);
+    config()->set('passportless.cookie.refresh.path', '/auth');
+    config()->set('cors.supports_credentials', true);
+    config()->set('cors.allowed_origins', ['https://app.example.test']);
+    config()->set('cors.paths', ['auth/*']);
+
+    Route::passportlessSpaAuth(
+        prefix: 'auth',
+        guard: 'passportless',
+        authenticate: PassportlessDoctorUser::class,
+    );
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('Passportless doctor found no configuration errors.')
+        ->assertSuccessful();
+});
+
+it('accepts host-keyed credentialed CORS paths that cover Passportless routes', function () {
+    config()->set('passportless.cookie.same_site', 'none');
+    config()->set('passportless.cookie.secure', true);
+    config()->set('passportless.cookie.refresh.path', '/auth');
+    config()->set('cors.supports_credentials', true);
+    config()->set('cors.allowed_origins', ['https://app.example.test']);
+    config()->set('cors.paths', ['api.example.test' => ['auth/*']]);
+
+    Route::passportlessSpaAuth(
+        prefix: 'auth',
+        guard: 'passportless',
+        authenticate: PassportlessDoctorUser::class,
+        domain: 'api.example.test',
+    );
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('Passportless doctor found no configuration errors.')
+        ->assertSuccessful();
+});
