@@ -34,10 +34,10 @@ Use separate Passportless guards when one app has separate identity stores (for 
 
 Both models need `HasPassportless` (or extend `l3aro\Passportless\Models\Tokenable`).
 
-Default Passportless guard name lives in `config/passportless.php` (`guard`). Override per call:
+Default Passportless guard name lives in `config/passportless.php` (`guard`). With named guards like below, pass the guard on every issue call (or set `passportless.guard` to one of them):
 
 ```php
-$clientToken = $user->createToken('iphone');
+$clientToken = $user->createToken('iphone', guard: 'passportless-client');
 $staffPair = $staff->createTokenPair('admin-browser', ['staff:read'], guard: 'passportless-admin');
 ```
 
@@ -57,7 +57,36 @@ Route::get('/admin/me', ...)->middleware('auth:passportless-admin');
 
 ## Browser / SPA
 
-Register SPA auth once per guard with different prefixes:
+SPA routes call `PassportlessCookieManager::forGuard($guard)`. Non-default guards **require** a cookie profile under `passportless.cookie.guards.{guard}` — missing profiles throw at login/refresh/logout. Cookie **names** must be unique across guards; **refresh paths** must cover each SPA prefix (including both refresh and logout).
+
+```php
+// config/passportless.php (or runtime config)
+'guard' => 'passportless-client', // fallback / unscoped manager
+
+'cookie' => [
+    // base profile for passportless-client (or set via cookie.guards.passportless-client)
+    'refresh' => [
+        'path' => '/api/auth',
+    ],
+    'guards' => [
+        'passportless-admin' => [
+            'access' => [
+                'name' => 'admin_access_token',
+            ],
+            'refresh' => [
+                'name' => 'admin_refresh_token',
+                'path' => '/api/auth/admin',
+            ],
+            'csrf' => [
+                'name' => 'admin_csrf_token',
+                'http_only' => false,
+            ],
+        ],
+    ],
+],
+```
+
+Register SPA auth once per guard with matching prefixes:
 
 ```php
 Route::passportlessSpaAuth(
@@ -73,7 +102,7 @@ Route::passportlessSpaAuth(
 );
 ```
 
-Cookie profiles can be overridden per guard under `passportless.cookie.guards.{guard}`. See [Browser cookies](browser-cookies.md) and [Configuration](configuration.md).
+If you keep `passportless.guard` as `passportless` (published default) and only use named guards, put **every** SPA guard under `cookie.guards` — including distinct names and refresh paths. See [Browser cookies](browser-cookies.md) and [Configuration](configuration.md).
 
 ## Related
 

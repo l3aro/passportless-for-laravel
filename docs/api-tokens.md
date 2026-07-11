@@ -55,7 +55,7 @@ Grant every ability with `*`:
 $token = $user->createToken('admin', ['*']);
 ```
 
-Default abilities when omitted come from `config('passportless.abilities.default')` (usually `['*']`). See [Configuration](configuration.md).
+`createToken` / `createTokenPair` default the abilities argument to `['*']` in PHP. Omitting the argument always issues a wildcard token; it does **not** read `config('passportless.abilities.default')`. That config is used by SPA auth routes when `abilities` is not passed to `Route::passportlessSpaAuth(...)`. See [Configuration](configuration.md) and [Browser cookies](browser-cookies.md).
 
 ## Protecting routes
 

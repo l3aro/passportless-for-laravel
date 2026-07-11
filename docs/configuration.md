@@ -22,7 +22,7 @@ File: `config/passportless.php`.
 | `access_token.last_used_update_interval` | `60` (seconds) | Throttle `last_used_at` writes |
 | `refresh_token.expiration` | `43200` (30 days, minutes) | Refresh + CSRF cookie lifetime |
 | `refresh_token.reuse_detection` | `REVOKE_FAMILY` | Behavior on refresh reuse (`IGNORE` also available) |
-| `abilities.default` | `['*']` | Default abilities when omitted |
+| `abilities.default` | `['*']` | SPA route default when `abilities` omitted from `passportlessSpaAuth`; not used by `createToken` / `createTokenPair` (those hardcode `['*']`) |
 | `abilities.wildcard_enabled` | `true` | Allow `*` ability |
 | `token.max_length` | `120` | Max accepted plain-text token length |
 | `cookie.domain` | `null` | Cookie domain |
@@ -31,7 +31,7 @@ File: `config/passportless.php`.
 | `cookie.access.path` | `/` | Access cookie path |
 | `cookie.refresh.path` | `/api/auth` | Must match SPA route prefix |
 | `cookie.csrf.path` | `/` | CSRF cookie path |
-| `cookie.guards` | `[]` | Per-guard cookie overrides |
+| `cookie.guards` | `[]` | Per-guard cookie profiles; **required** for any guard other than `passportless.guard` when calling `forGuard()` / SPA routes |
 
 ## Guard binding
 
@@ -53,9 +53,10 @@ The default guard name is `config('passportless.guard')`. See [Multiple guards](
 - Token lifetimes must be positive integers
 - `SameSite=None` requires Secure cookies
 
-Per-guard overrides: `passportless.cookie.guards.{guard}`. The unscoped manager uses `passportless.guard` as fallback.
+Per-guard profiles: `passportless.cookie.guards.{guard}`. The unscoped manager uses `passportless.guard` as fallback. `forGuard($otherGuard)` fails closed unless `$otherGuard` is that fallback or has a `cookie.guards` entry. Multi-guard SPA setups need unique cookie names and refresh paths that cover each SPA prefix — see [Multiple guards](multi-guard.md).
 
 ## Related
 
 - [Browser cookies](browser-cookies.md)
+- [Multiple guards](multi-guard.md) — required cookie profiles for SPA multi-guard
 - [Operations](operations.md) — audit with `passportless:doctor`

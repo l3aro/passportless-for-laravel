@@ -63,7 +63,7 @@ Notes:
 - Align refresh cookie path with the prefix (default `/api/auth` covers both refresh and logout)
 - Host still owns CORS, `EncryptCookies` exclusions for the JS-readable CSRF cookie, and throttles
 
-Multi-guard: call `Route::passportlessSpaAuth(...)` again with another `prefix`, `guard`, and authenticator. See [Multiple guards](multi-guard.md).
+Multi-guard: call `Route::passportlessSpaAuth(...)` again with another `prefix`, `guard`, and authenticator. Each non-fallback guard needs a `passportless.cookie.guards.{guard}` profile (unique cookie names + refresh path covering that prefix). See [Multiple guards](multi-guard.md).
 
 ## Option B — Manual cookies
 
@@ -82,7 +82,7 @@ Route::post('/auth/login', function (PassportlessCookieManager $cookies) {
 });
 ```
 
-`PassportlessCookieManager` returns Symfony `Cookie` objects only. It does not queue or mutate responses. Scope per guard with `->forGuard('passportless-admin')`.
+`PassportlessCookieManager` returns Symfony `Cookie` objects only. It does not queue or mutate responses. Scope per guard with `->forGuard('passportless-admin')` — that guard must exist under `passportless.cookie.guards` (or be `passportless.guard`) or construction throws.
 
 Read / clear:
 
