@@ -140,6 +140,22 @@ it('reports refresh cookie paths that do not cover SPA refresh routes', function
         ->assertFailed();
 });
 
+it('reports an invalid cookie domain', function () {
+    config()->set('passportless.cookie.domain', 'bad;domain');
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('FAIL: Passportless cookie domain for guard [passportless] is invalid.')
+        ->assertFailed();
+});
+
+it('reports a non-boolean cookie secure setting', function () {
+    config()->set('passportless.cookie.secure', 'true');
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('FAIL: Passportless cookie secure setting for guard [passportless] must be boolean or null.')
+        ->assertFailed();
+});
+
 it('reports credentialed CORS with a wildcard origin', function () {
     config()->set('passportless.cookie.refresh.path', '/auth');
 
@@ -149,6 +165,22 @@ it('reports credentialed CORS with a wildcard origin', function () {
         authenticate: PassportlessDoctorUser::class,
     );
     config()->set('cors.allowed_origins', ['*']);
+    config()->set('cors.supports_credentials', true);
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('FAIL: Credentialed CORS must not use a wildcard allowed origin.')
+        ->assertFailed();
+});
+
+it('reports credentialed CORS with a catch-all origin pattern', function () {
+    config()->set('passportless.cookie.refresh.path', '/auth');
+
+    Route::passportlessSpaAuth(
+        prefix: 'auth',
+        guard: 'passportless',
+        authenticate: PassportlessDoctorUser::class,
+    );
+    config()->set('cors.allowed_origins_patterns', ['#^https?://.*$#']);
     config()->set('cors.supports_credentials', true);
 
     $this->artisan('passportless:doctor')

@@ -197,12 +197,21 @@ class DoctorCommand extends Command
             }
         }
 
+        $domain = $profile['domain'] ?? null;
+        $secure = $profile['secure'] ?? null;
         $sameSite = $profile['same_site'] ?? null;
-        $secure = $this->secureCookieProfile($profile);
+
+        if ($domain !== null && (! is_string($domain) || ! $this->domainIsValid($domain))) {
+            $this->recordError("Passportless cookie domain for guard [{$guard}] is invalid.");
+        }
+
+        if ($secure !== null && ! is_bool($secure)) {
+            $this->recordError("Passportless cookie secure setting for guard [{$guard}] must be boolean or null.");
+        }
 
         if (! is_string($sameSite) || ! in_array(strtolower($sameSite), ['lax', 'strict', 'none'], true)) {
             $this->recordError("Passportless SameSite setting for guard [{$guard}] must be lax, strict, or none.");
-        } elseif (strtolower($sameSite) === 'none' && ! $secure) {
+        } elseif (strtolower($sameSite) === 'none' && ! $this->secureCookieProfile($profile)) {
             $this->recordError("Passportless SameSite=None cookies for guard [{$guard}] must be secure.");
         }
     }
@@ -248,7 +257,8 @@ class DoctorCommand extends Command
         $patterns = config('cors.allowed_origins_patterns', []);
         $supportsCredentials = config('cors.supports_credentials');
         $hasWildcard = (is_array($origins) && in_array('*', $origins, true))
-            || (is_array($patterns) && in_array('*', $patterns, true));
+            || (is_array($patterns) && in_array('*', $patterns, true))
+            || (is_array($patterns) && $this->allowsAnyHttpsOrigin($patterns));
 
         if ($supportsCredentials === true && $hasWildcard) {
             $this->recordError('Credentialed CORS must not use a wildcard allowed origin.');
@@ -383,6 +393,48 @@ class DoctorCommand extends Command
         $secure = $profile['secure'] ?? null;
 
         return $secure === null ? config('app.env') === 'production' : $secure === true;
+    }
+
+    /**
+     * @param  array<int, mixed>  $patterns
+     */
+    protected function allowsAnyHttpsOrigin(array $patterns): bool
+    {
+        $origins = [
+            'https://passportless-doctor-a.invalid',
+            'https://passportless-doctor-b.invalid',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (! is_string($pattern)) {
+                continue;
+            }
+
+            foreach ($origins as $origin) {
+                if (preg_match($pattern, $origin) !== 1) {
+                    continue 2;
+                }
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    protected function domainIsValid(string $domain): bool
+    {
+        $hostname = ltrim($domain, '.');
+
+        if ($hostname === '' || str_contains($domain, '..')) {
+            return false;
+        }
+
+        if (filter_var($hostname, FILTER_VALIDATE_IP) !== false) {
+            return true;
+        }
+
+        return filter_var($hostname, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) !== false;
     }
 
     protected function cookiePathCoversRoute(string $cookiePath, string $routeUri): bool
