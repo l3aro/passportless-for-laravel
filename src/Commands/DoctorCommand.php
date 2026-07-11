@@ -188,7 +188,7 @@ class DoctorCommand extends Command
             $path = $cookie['path'] ?? null;
             $httpOnly = $cookie['http_only'] ?? null;
 
-            if (! is_string($name) || $name === '' || preg_match('/[=,;\s]/', $name) === 1) {
+            if (! is_string($name) || $name === '' || preg_match('/[=,;\s"\'\x00-\x1F\x7F]/', $name) === 1) {
                 $this->recordError("Passportless {$role} cookie name for guard [{$guard}] is invalid.");
             } elseif (isset($names[$name])) {
                 $this->recordError("Passportless cookie name [{$name}] is shared by guards [{$names[$name]}] and [{$guard}].");
@@ -198,6 +198,8 @@ class DoctorCommand extends Command
 
             if (! is_string($path) || ! str_starts_with($path, '/')) {
                 $this->recordError("Passportless {$role} cookie path for guard [{$guard}] must start with [/].");
+            } elseif ($role === 'refresh' && $path === '/') {
+                $this->recordError("Passportless refresh cookie path for guard [{$guard}] should not be [/] because it sends the refresh token on every same-site request.");
             }
 
             if (! is_bool($httpOnly)) {
@@ -219,6 +221,8 @@ class DoctorCommand extends Command
 
         if ($secure !== null && ! is_bool($secure)) {
             $this->recordError("Passportless cookie secure setting for guard [{$guard}] must be boolean or null.");
+        } elseif ($secure === false && config('app.env') === 'production') {
+            $this->recordError("Passportless cookies for guard [{$guard}] should be secure in production.");
         }
 
         if (! is_string($sameSite) || ! in_array(strtolower($sameSite), ['lax', 'strict', 'none'], true)) {
