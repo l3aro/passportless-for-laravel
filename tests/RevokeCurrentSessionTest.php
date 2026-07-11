@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use l3aro\Passportless\Models\PersonalAccessToken;
@@ -14,6 +15,11 @@ beforeEach(function () {
         'driver' => 'passportless',
         'provider' => 'users',
     ]);
+    config()->set('auth.guards.passportless-other', [
+        'driver' => 'passportless',
+        'provider' => 'other-users',
+    ]);
+    config()->set('auth.providers.other-users.model', PassportlessRevokeTestUser::class);
     config()->set('passportless.guard', 'passportless');
 
     Schema::create('passportless_revoke_users', function (Blueprint $table) {
@@ -110,11 +116,117 @@ it('revokes a session from its active refresh token', function () {
         ->and(RefreshToken::query()->find($pair->refreshToken->getKey())?->revoked_at)->not->toBeNull();
 });
 
-class PassportlessRevokeTestUser extends Tokenable
+it('logs out the current session with the revocation alias', function () {
+    $user = PassportlessRevokeTestUser::query()->create();
+    $pair = $user->createTokenPair('browser', ['orders:read']);
+
+    app(Passportless::class)->logoutCurrentSession($pair->plainTextAccessToken(), 'passportless');
+
+    expect(TokenSession::query()->find($pair->session->getKey())?->revoked_at)->not->toBeNull()
+        ->and(PersonalAccessToken::query()->find($pair->accessToken->accessToken->getKey())?->revoked_at)->not->toBeNull()
+        ->and(RefreshToken::query()->find($pair->refreshToken->getKey())?->revoked_at)->not->toBeNull();
+});
+
+it('logs out every matching active session and preserves unrelated bindings', function () {
+    $user = PassportlessRevokeTestUser::query()->create();
+    $otherUser = PassportlessRevokeTestUser::query()->create();
+    $first = $user->createTokenPair('phone', guard: 'passportless');
+    $second = $user->createTokenPair('laptop', guard: 'passportless');
+    $otherBinding = $user->createTokenPair('admin', guard: 'passportless-other');
+    $otherOwner = $otherUser->createTokenPair('other', guard: 'passportless');
+
+    app(Passportless::class)->logoutAllSessions($user, 'passportless');
+    app(Passportless::class)->logoutAllSessions($user, 'passportless');
+
+    expect($first->session->fresh()->isRevoked())->toBeTrue()
+        ->and($first->accessToken->accessToken->fresh()->isRevoked())->toBeTrue()
+        ->and($first->refreshToken->fresh()->isRevoked())->toBeTrue()
+        ->and($second->session->fresh()->isRevoked())->toBeTrue()
+        ->and($second->accessToken->accessToken->fresh()->isRevoked())->toBeTrue()
+        ->and($second->refreshToken->fresh()->isRevoked())->toBeTrue()
+        ->and($otherBinding->session->fresh()->isRevoked())->toBeFalse()
+        ->and($otherOwner->session->fresh()->isRevoked())->toBeFalse();
+});
+
+it('treats no matching active sessions as an idempotent no-op', function () {
+    $user = PassportlessRevokeTestUser::query()->create();
+    $other = PassportlessRevokeTestUser::query()->create();
+    $pair = $other->createTokenPair('browser');
+
+    app(Passportless::class)->logoutAllSessions($user, 'passportless');
+    app(Passportless::class)->logoutAllSessions($user, 'passportless');
+
+    expect($pair->session->fresh()->isRevoked())->toBeFalse();
+});
+
+it('prevents refresh after all-session logout', function () {
+    $user = PassportlessRevokeTestUser::query()->create();
+    $pair = $user->createTokenPair('browser');
+    $service = app(Passportless::class);
+
+    $service->logoutAllSessions($user, 'passportless');
+
+    expect($service->refreshToken($pair->plainTextRefreshToken(), guard: 'passportless'))->toBeNull()
+        ->and($pair->session->fresh()->isRevoked())->toBeTrue();
+});
+
+it('revokes refresh replacements when refresh completes before all-session logout', function () {
+    $user = PassportlessRevokeTestUser::query()->create();
+    $pair = $user->createTokenPair('browser');
+    $service = app(Passportless::class);
+
+    $replacement = $service->refreshToken($pair->plainTextRefreshToken(), guard: 'passportless');
+
+    expect($replacement)->not->toBeNull();
+
+    if ($replacement === null) {
+        $this->fail('Refresh token rotation failed.');
+    }
+
+    $service->logoutAllSessions($user, 'passportless');
+
+    expect($pair->session->fresh()->isRevoked())->toBeTrue()
+        ->and($replacement->accessToken->accessToken->fresh()->isRevoked())->toBeTrue()
+        ->and($replacement->refreshToken->fresh()->isRevoked())->toBeTrue();
+});
+
+class PassportlessRevokeTestUser extends Tokenable implements Authenticatable
 {
     public $timestamps = false;
 
     protected $guarded = [];
 
     protected $table = 'passportless_revoke_users';
+
+    public function getAuthIdentifierName(): string
+    {
+        return $this->getKeyName();
+    }
+
+    public function getAuthIdentifier(): mixed
+    {
+        return $this->getKey();
+    }
+
+    public function getAuthPasswordName(): string
+    {
+        return 'password';
+    }
+
+    public function getAuthPassword(): string
+    {
+        return '';
+    }
+
+    public function getRememberToken(): string
+    {
+        return '';
+    }
+
+    public function setRememberToken($value): void {}
+
+    public function getRememberTokenName(): string
+    {
+        return 'remember_token';
+    }
 }
