@@ -186,6 +186,58 @@ it('reports a non-boolean cookie secure setting', function () {
         ->assertFailed();
 });
 
+it('reports cookie names with control characters or double quotes', function (string $name) {
+    config()->set('passportless.cookie.access.name', $name);
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('FAIL: Passportless access cookie name for guard [passportless] is invalid.')
+        ->assertFailed();
+})->with([
+    'double quote' => ['access"token'],
+    'null byte' => ["access\x00token"],
+    'control character' => ["access\x1Ftoken"],
+    'delete character' => ["access\x7Ftoken"],
+]);
+
+it('accepts cookie names containing apostrophes', function () {
+    config()->set('passportless.cookie.access.name', "passportless'access");
+
+    $this->artisan('passportless:doctor')->assertSuccessful();
+});
+
+it('reports duplicate cookie names across guards', function () {
+    config()->set('auth.guards.passportless-admin', [
+        'driver' => 'passportless',
+        'provider' => 'users',
+    ]);
+    config()->set('passportless.cookie.guards.passportless-admin', [
+        'access' => ['name' => 'passportless_access_token'],
+        'refresh' => ['name' => 'admin_refresh_token'],
+        'csrf' => ['name' => 'admin_csrf_token', 'http_only' => false],
+    ]);
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('FAIL: Passportless cookie name [passportless_access_token] is shared by guards [passportless] and [passportless-admin].')
+        ->assertFailed();
+});
+
+it('reports a root refresh cookie path', function () {
+    config()->set('passportless.cookie.refresh.path', '/');
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('FAIL: Passportless refresh cookie path for guard [passportless] should not be [/] because it sends the refresh token on every same-site request.')
+        ->assertFailed();
+});
+
+it('reports insecure cookies in production', function () {
+    config()->set('app.env', 'production');
+    config()->set('passportless.cookie.secure', false);
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('FAIL: Passportless cookies for guard [passportless] should be secure in production.')
+        ->assertFailed();
+});
+
 it('reports credentialed CORS with a wildcard origin', function () {
     config()->set('passportless.cookie.refresh.path', '/auth');
 

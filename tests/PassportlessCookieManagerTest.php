@@ -252,11 +252,19 @@ it('rejects ambiguous cookie names and invalid paths', function (string $key, mi
 })->with([
     'duplicate name' => ['passportless.cookie.csrf.name', 'passportless_access_token'],
     'reserved name character' => ['passportless.cookie.access.name', 'access;token'],
+    'quoted name' => ['passportless.cookie.access.name', 'access"token'],
+    'control character name' => ['passportless.cookie.access.name', "access\x00token"],
     'relative path' => ['passportless.cookie.refresh.path', 'api/auth/refresh'],
     'empty domain' => ['passportless.cookie.domain', ''],
     'attribute injection domain' => ['passportless.cookie.domain', 'example.test; SameSite=None'],
     'invalid hostname' => ['passportless.cookie.domain', '-example.test'],
 ]);
+
+it('allows apostrophes in cookie names', function () {
+    config()->set('passportless.cookie.access.name', "passportless'access");
+
+    expect(app(PassportlessCookieManager::class)->accessCookieName())->toBe("passportless'access");
+});
 
 it('rejects invalid token lifetimes', function (string $key, mixed $value) {
     config()->set($key, $value);

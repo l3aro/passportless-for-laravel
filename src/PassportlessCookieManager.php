@@ -295,7 +295,7 @@ class PassportlessCookieManager
             $path = $roleConfig['path'] ?? null;
             $httpOnly = $roleConfig['http_only'] ?? null;
 
-            if (! is_string($name) || $name === '' || preg_match('/[=,;\s]/', $name) === 1) {
+            if (! is_string($name) || $name === '' || preg_match('/[=,;\s"\x00-\x1F\x7F]/', $name) === 1) {
                 throw new InvalidArgumentException("The [passportless.cookie.guards.{$guardLabel}.{$role}.name] configuration value is invalid.");
             }
 
