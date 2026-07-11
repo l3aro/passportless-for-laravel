@@ -6,8 +6,10 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\TestCase;
 use Illuminate\Testing\TestResponse;
+use InvalidArgumentException;
 use l3aro\Passportless\Passportless;
 use l3aro\Passportless\PassportlessCookieManager;
+use l3aro\Passportless\Support\AuthBindingResolver;
 use PHPUnit\Framework\Assert;
 use Symfony\Component\HttpFoundation\Cookie;
 
@@ -18,6 +20,12 @@ trait InteractsWithPassportless
 {
     protected function actingAsPassportless(Authenticatable $user, string $guard = 'passportless'): static
     {
+        $binding = app(AuthBindingResolver::class)->resolve($guard);
+
+        if (! $user instanceof $binding->model) {
+            throw new InvalidArgumentException("User model does not match Passportless guard [{$binding->guard}].");
+        }
+
         return $this->actingAs($user, $guard);
     }
 
@@ -36,6 +44,7 @@ trait InteractsWithPassportless
             $cookies->refreshCookieName() => $pair->plainTextRefreshToken(),
             $cookies->csrfCookieName() => $csrf,
         ]);
+        $this->withHeader('X-CSRF-TOKEN', $csrf);
 
         return $this;
     }

@@ -89,6 +89,7 @@ beforeEach(function () {
     });
 
     Route::middleware('auth:passportless')->get('/passportless-testing/me', fn () => response()->noContent());
+    Route::middleware(['passportless.csrf', 'auth:passportless'])->post('/passportless-testing/me', fn () => response()->noContent());
     Route::get('/passportless-testing/cookies', fn () => response()->noContent()
         ->withCookie(app(PassportlessCookieManager::class)->createAccessCookie('access'))
         ->withCookie(app(PassportlessCookieManager::class)->createRefreshCookie('refresh'))
@@ -106,13 +107,21 @@ it('impersonates through Laravel without issuing a Passportless token', function
         ->and(PersonalAccessToken::query()->count())->toBe(0);
 });
 
+it('rejects impersonation through a guard with a different provider model', function () {
+    $user = PassportlessTestingUser::query()->create();
+
+    expect(fn () => $this->actingAsPassportless($user, 'passportless-admin'))
+        ->toThrow(InvalidArgumentException::class);
+});
+
 it('sets guard-scoped cookie credentials without exposing the token pair', function () {
     $user = PassportlessTestingUser::query()->create();
 
     expect($this->withPassportlessCookieSession($user))->toBe($this)
         ->and(PersonalAccessToken::query()->count())->toBe(1)
         ->and(RefreshToken::query()->count())->toBe(1)
-        ->and($this->get('/passportless-testing/me')->status())->toBe(204);
+        ->and($this->get('/passportless-testing/me')->status())->toBe(204)
+        ->and($this->post('/passportless-testing/me')->status())->toBe(204);
 });
 
 it('preserves guard and provider validation for cookie session setup', function () {
