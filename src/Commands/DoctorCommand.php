@@ -268,9 +268,16 @@ class DoctorCommand extends Command
         $origins = config('cors.allowed_origins', []);
         $patterns = config('cors.allowed_origins_patterns', []);
         $supportsCredentials = config('cors.supports_credentials');
-        $hasWildcard = (is_array($origins) && in_array('*', $origins, true))
-            || (is_array($patterns) && in_array('*', $patterns, true))
-            || (is_array($patterns) && $this->allowsAnyHttpsOrigin($patterns));
+
+        try {
+            $hasWildcardPattern = is_array($patterns) && $this->allowsAnyHttpsOrigin($patterns);
+            $hasWildcard = (is_array($origins) && in_array('*', $origins, true))
+                || (is_array($patterns) && in_array('*', $patterns, true))
+                || $hasWildcardPattern;
+        } catch (Throwable) {
+            $this->recordError('CORS allowed_origins_patterns contains an invalid regular expression.');
+            $hasWildcard = false;
+        }
 
         if ($supportsCredentials === true && $hasWildcard) {
             $this->recordError('Credentialed CORS must not use a wildcard allowed origin.');
@@ -470,22 +477,29 @@ class DoctorCommand extends Command
             'https://passportless-doctor-a.invalid',
             'https://passportless-doctor-b.invalid',
         ];
+        $allowsAnyOrigin = false;
 
         foreach ($patterns as $pattern) {
-            if (! is_string($pattern)) {
+            if (! is_string($pattern) || $pattern === '*') {
                 continue;
             }
 
             foreach ($origins as $origin) {
-                if (preg_match($pattern, $origin) !== 1) {
+                $matches = preg_match($pattern, $origin);
+
+                if ($matches === false) {
+                    throw new InvalidArgumentException('CORS allowed origins pattern must be a valid regular expression.');
+                }
+
+                if ($matches !== 1) {
                     continue 2;
                 }
             }
 
-            return true;
+            $allowsAnyOrigin = true;
         }
 
-        return false;
+        return $allowsAnyOrigin;
     }
 
     protected function domainIsValid(string $domain): bool

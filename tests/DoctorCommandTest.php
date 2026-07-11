@@ -218,6 +218,53 @@ it('reports credentialed CORS with a catch-all origin pattern', function () {
         ->assertFailed();
 });
 
+it('reports malformed CORS allowed origins patterns', function () {
+    config()->set('passportless.cookie.refresh.path', '/auth');
+
+    Route::passportlessSpaAuth(
+        prefix: 'auth',
+        guard: 'passportless',
+        authenticate: PassportlessDoctorUser::class,
+    );
+    config()->set('cors.allowed_origins', []);
+    config()->set('cors.allowed_origins_patterns', ['#[unclosed']);
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('FAIL: CORS allowed_origins_patterns contains an invalid regular expression.')
+        ->assertFailed();
+});
+
+it('reports malformed CORS patterns when allowed origins contain a wildcard', function () {
+    config()->set('passportless.cookie.refresh.path', '/auth');
+
+    Route::passportlessSpaAuth(
+        prefix: 'auth',
+        guard: 'passportless',
+        authenticate: PassportlessDoctorUser::class,
+    );
+    config()->set('cors.allowed_origins_patterns', ['#[unclosed']);
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('FAIL: CORS allowed_origins_patterns contains an invalid regular expression.')
+        ->assertFailed();
+});
+
+it('reports malformed CORS patterns when allowed origin patterns contain a wildcard', function () {
+    config()->set('passportless.cookie.refresh.path', '/auth');
+
+    Route::passportlessSpaAuth(
+        prefix: 'auth',
+        guard: 'passportless',
+        authenticate: PassportlessDoctorUser::class,
+    );
+    config()->set('cors.allowed_origins', []);
+    config()->set('cors.allowed_origins_patterns', ['*', '#[unclosed']);
+
+    $this->artisan('passportless:doctor')
+        ->expectsOutput('FAIL: CORS allowed_origins_patterns contains an invalid regular expression.')
+        ->assertFailed();
+});
+
 it('does not require CORS for same-origin SameSite=None cookie auth', function () {
     config()->set('passportless.cookie.same_site', 'none');
     config()->set('passportless.cookie.secure', true);
