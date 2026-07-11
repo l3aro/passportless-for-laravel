@@ -363,6 +363,24 @@ Laravel's `EncryptCookies` middleware encrypts response cookies and decrypts req
 composer test
 ```
 
+### Consumer test helpers
+
+Host tests can opt into `InteractsWithPassportless`; it is not available on the service or facade. The trait uses Laravel's test-case and `TestResponse` APIs.
+
+```php
+use l3aro\Passportless\Testing\InteractsWithPassportless;
+
+uses(InteractsWithPassportless::class);
+
+it('authenticates a cookie session', function () {
+    $this->withPassportlessCookieSession($user)
+        ->get('/api/me')
+        ->assertOk();
+});
+```
+
+PHPUnit-style host test cases may add `use InteractsWithPassportless;`. The trait provides protected fluent methods: `actingAsPassportless`, `withPassportlessCookieSession`, `assertPassportlessAuthCookiesQueued`, and `assertPassportlessAuthCookiesForgotten`. Cookie setup injects normal access, refresh, and CSRF request cookies for the selected guard; it does not return token credentials.
+
 ## Changelog
 
 Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
