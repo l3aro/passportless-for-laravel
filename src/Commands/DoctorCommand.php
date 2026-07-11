@@ -188,7 +188,7 @@ class DoctorCommand extends Command
             $path = $cookie['path'] ?? null;
             $httpOnly = $cookie['http_only'] ?? null;
 
-            if (! is_string($name) || $name === '' || preg_match('/[=,;\s"\'\x00-\x1F\x7F]/', $name) === 1) {
+            if (! is_string($name) || $name === '' || preg_match('/[=,;\s"\x00-\x1F\x7F]/', $name) === 1) {
                 $this->recordError("Passportless {$role} cookie name for guard [{$guard}] is invalid.");
             } elseif (isset($names[$name])) {
                 $this->recordError("Passportless cookie name [{$name}] is shared by guards [{$names[$name]}] and [{$guard}].");

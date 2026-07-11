@@ -260,6 +260,12 @@ it('rejects ambiguous cookie names and invalid paths', function (string $key, mi
     'invalid hostname' => ['passportless.cookie.domain', '-example.test'],
 ]);
 
+it('allows apostrophes in cookie names', function () {
+    config()->set('passportless.cookie.access.name', "passportless'access");
+
+    expect(app(PassportlessCookieManager::class)->accessCookieName())->toBe("passportless'access");
+});
+
 it('rejects invalid token lifetimes', function (string $key, mixed $value) {
     config()->set($key, $value);
 

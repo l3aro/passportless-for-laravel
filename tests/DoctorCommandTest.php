@@ -186,7 +186,7 @@ it('reports a non-boolean cookie secure setting', function () {
         ->assertFailed();
 });
 
-it('reports cookie names with control characters or quotes', function (string $name) {
+it('reports cookie names with control characters or double quotes', function (string $name) {
     config()->set('passportless.cookie.access.name', $name);
 
     $this->artisan('passportless:doctor')
@@ -194,11 +194,16 @@ it('reports cookie names with control characters or quotes', function (string $n
         ->assertFailed();
 })->with([
     'double quote' => ['access"token'],
-    'single quote' => ["access'token"],
     'null byte' => ["access\x00token"],
     'control character' => ["access\x1Ftoken"],
     'delete character' => ["access\x7Ftoken"],
 ]);
+
+it('accepts cookie names containing apostrophes', function () {
+    config()->set('passportless.cookie.access.name', "passportless'access");
+
+    $this->artisan('passportless:doctor')->assertSuccessful();
+});
 
 it('reports duplicate cookie names across guards', function () {
     config()->set('auth.guards.passportless-admin', [
