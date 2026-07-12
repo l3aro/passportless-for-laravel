@@ -19,7 +19,7 @@ it('allows unsafe methods when csrf cookie matches x-csrf-token header', functio
     $request->cookies->set($cookies->csrfCookieName(), $token);
     $request->headers->set('X-CSRF-TOKEN', $token);
 
-    $response = app(ValidateCsrfCookie::class)->handle($request, fn () => response('ok'));
+    $response = app(ValidateCsrfCookie::class)->handle($request, fn() => response('ok'));
 
     expect($response->getContent())->toBe('ok');
 });
@@ -32,7 +32,7 @@ it('allows csrf values that contain percent-encoded text when both sources match
     $request->cookies->set($cookies->csrfCookieName(), $token);
     $request->headers->set('X-CSRF-TOKEN', $token);
 
-    $response = app(ValidateCsrfCookie::class)->handle($request, fn () => response('ok'));
+    $response = app(ValidateCsrfCookie::class)->handle($request, fn() => response('ok'));
 
     expect($response->getContent())->toBe('ok');
 });
@@ -41,7 +41,7 @@ it('rejects missing csrf cookie with 419', function () {
     $request = Request::create('/profile', 'POST');
     $request->headers->set('X-CSRF-TOKEN', 'present');
 
-    expect(fn () => app(ValidateCsrfCookie::class)->handle($request, fn () => response('ok')))
+    expect(fn() => app(ValidateCsrfCookie::class)->handle($request, fn() => response('ok')))
         ->toThrow(function (HttpException $exception) {
             expect($exception->getStatusCode())->toBe(419)
                 ->and($exception->getMessage())->toBe('CSRF token mismatch.')
@@ -56,7 +56,7 @@ it('rejects missing x-csrf-token header with 419', function () {
     $request = Request::create('/profile', 'POST');
     $request->cookies->set($cookies->csrfCookieName(), $token);
 
-    expect(fn () => app(ValidateCsrfCookie::class)->handle($request, fn () => response('ok')))
+    expect(fn() => app(ValidateCsrfCookie::class)->handle($request, fn() => response('ok')))
         ->toThrow(function (HttpException $exception) use ($token) {
             expect($exception->getStatusCode())->toBe(419)
                 ->and($exception->getMessage())->not->toContain($token);
@@ -70,7 +70,7 @@ it('rejects empty csrf cookie or header with 419', function (string $cookieValue
     $request->cookies->set($cookies->csrfCookieName(), $cookieValue);
     $request->headers->set('X-CSRF-TOKEN', $headerValue);
 
-    expect(fn () => app(ValidateCsrfCookie::class)->handle($request, fn () => response('ok')))
+    expect(fn() => app(ValidateCsrfCookie::class)->handle($request, fn() => response('ok')))
         ->toThrow(function (HttpException $exception) {
             expect($exception->getStatusCode())->toBe(419);
         });
@@ -89,7 +89,7 @@ it('rejects mismatched csrf values with 419 without exposing tokens', function (
     $request->cookies->set($cookies->csrfCookieName(), $cookieToken);
     $request->headers->set('X-CSRF-TOKEN', $headerToken);
 
-    expect(fn () => app(ValidateCsrfCookie::class)->handle($request, fn () => response('ok')))
+    expect(fn() => app(ValidateCsrfCookie::class)->handle($request, fn() => response('ok')))
         ->toThrow(function (HttpException $exception) use ($cookieToken, $headerToken) {
             expect($exception->getStatusCode())->toBe(419)
                 ->and($exception->getMessage())->toBe('CSRF token mismatch.')
@@ -101,7 +101,7 @@ it('rejects mismatched csrf values with 419 without exposing tokens', function (
 it('bypasses csrf validation for safe methods', function (string $method) {
     $request = Request::create('/profile', $method);
 
-    $response = app(ValidateCsrfCookie::class)->handle($request, fn () => response('ok'));
+    $response = app(ValidateCsrfCookie::class)->handle($request, fn() => response('ok'));
 
     expect($response->getContent())->toBe('ok');
 })->with(['GET', 'HEAD', 'OPTIONS']);
@@ -123,7 +123,7 @@ it('uses guard-specific csrf cookie names', function () {
 
     $response = app(ValidateCsrfCookie::class)->handle(
         $request,
-        fn () => response('ok'),
+        fn() => response('ok'),
         'passportless-admin',
     );
 
@@ -146,9 +146,9 @@ it('rejects default csrf cookie when guard-scoped middleware expects admin cooki
     $request->cookies->set($defaultCookies->csrfCookieName(), $token);
     $request->headers->set('X-CSRF-TOKEN', $token);
 
-    expect(fn () => app(ValidateCsrfCookie::class)->handle(
+    expect(fn() => app(ValidateCsrfCookie::class)->handle(
         $request,
-        fn () => response('ok'),
+        fn() => response('ok'),
         'passportless-admin',
     ))->toThrow(function (HttpException $exception) {
         expect($exception->getStatusCode())->toBe(419);

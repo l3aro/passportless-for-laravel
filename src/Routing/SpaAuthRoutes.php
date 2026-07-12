@@ -39,7 +39,7 @@ class SpaAuthRoutes
         }
 
         $abilities ??= config('passportless.abilities.default', ['*']);
-        $as ??= 'passportless.'.Str::slug($guard, '_').'.';
+        $as ??= 'passportless.' . Str::slug($guard, '_') . '.';
         $defaults = [
             'passportlessGuard' => $guard,
             'passportlessAuthenticate' => $authenticate,
@@ -75,7 +75,7 @@ class SpaAuthRoutes
             $withDefaults(
                 $router->post('login', SpaLoginController::class)
                     ->name('login')
-                    ->middleware($loginMiddlewareStack)
+                    ->middleware($loginMiddlewareStack),
             );
 
             $refreshMiddlewareStack = $refreshMiddleware;
@@ -84,24 +84,24 @@ class SpaAuthRoutes
             if ($csrf) {
                 $refreshMiddlewareStack = array_values(array_unique([
                     ...$refreshMiddlewareStack,
-                    'passportless.csrf:'.$guard,
+                    'passportless.csrf:' . $guard,
                 ]));
                 $logoutMiddlewareStack = array_values(array_unique([
                     ...$logoutMiddlewareStack,
-                    'passportless.csrf:'.$guard,
+                    'passportless.csrf:' . $guard,
                 ]));
             }
 
             $withDefaults(
                 $router->post('refresh', SpaRefreshController::class)
                     ->name('refresh')
-                    ->middleware($refreshMiddlewareStack)
+                    ->middleware($refreshMiddlewareStack),
             );
 
             $withDefaults(
                 $router->post('logout', SpaLogoutController::class)
                     ->name('logout')
-                    ->middleware($logoutMiddlewareStack)
+                    ->middleware($logoutMiddlewareStack),
             );
         });
     }

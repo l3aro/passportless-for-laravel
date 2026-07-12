@@ -82,22 +82,22 @@ it('denies access tokens through the wrong passportless guard', function () {
     $clientToken = $user->createToken('client', guard: 'passportless-client');
     $adminToken = $staff->createToken('admin', guard: 'passportless-admin');
 
-    request()->headers->set('Authorization', 'Bearer '.$clientToken->plainTextToken);
+    request()->headers->set('Authorization', 'Bearer ' . $clientToken->plainTextToken);
     expect(Auth::guard('passportless-client')->user())->toBeInstanceOf(PassportlessBindingUser::class);
 
     Auth::forgetGuards();
-    request()->headers->set('Authorization', 'Bearer '.$clientToken->plainTextToken);
+    request()->headers->set('Authorization', 'Bearer ' . $clientToken->plainTextToken);
     expect(Auth::guard('passportless-admin')->user())->toBeNull();
 
     Auth::forgetGuards();
-    request()->headers->set('Authorization', 'Bearer '.$adminToken->plainTextToken);
+    request()->headers->set('Authorization', 'Bearer ' . $adminToken->plainTextToken);
     expect(Auth::guard('passportless-client')->user())->toBeNull();
 });
 
 it('prevents tokenable models from minting tokens for another provider guard', function () {
     $user = PassportlessBindingUser::query()->create(['id' => 1]);
 
-    expect(fn () => $user->createToken('admin', guard: 'passportless-admin'))->toThrow(InvalidArgumentException::class);
+    expect(fn() => $user->createToken('admin', guard: 'passportless-admin'))->toThrow(InvalidArgumentException::class);
 });
 
 it('rejects tampered tokens whose stored guard does not match the morph owner model', function () {
@@ -115,7 +115,7 @@ it('rejects tampered tokens whose stored guard does not match the morph owner mo
         'tokenable_id' => $user->getKey(),
     ])->save();
 
-    request()->headers->set('Authorization', 'Bearer '.$adminToken->plainTextToken);
+    request()->headers->set('Authorization', 'Bearer ' . $adminToken->plainTextToken);
 
     expect(Auth::guard('passportless-admin')->user())->toBeNull()
         ->and(app(Passportless::class)->refreshToken($adminPair->plainTextRefreshToken()))->toBeNull();
@@ -252,7 +252,7 @@ it('keeps model token session and token relations isolated for colliding owner I
 it('fails closed for unknown guards and stored context mismatches', function () {
     $user = PassportlessBindingUser::query()->create(['id' => 1]);
 
-    expect(fn () => $user->createToken('bad', guard: 'missing'))->toThrow(InvalidArgumentException::class);
+    expect(fn() => $user->createToken('bad', guard: 'missing'))->toThrow(InvalidArgumentException::class);
 
     $token = $user->createToken('client', guard: 'passportless-client');
     $token->accessToken->forceFill(['guard' => 'missing'])->save();
@@ -268,15 +268,15 @@ it('fails closed for unknown guards and stored context mismatches', function () 
 it('validates malformed guard configuration', function (Closure $configure) {
     $configure();
 
-    expect(fn () => app(AuthBindingResolver::class)->validateConfiguration())->toThrow(InvalidArgumentException::class);
+    expect(fn() => app(AuthBindingResolver::class)->validateConfiguration())->toThrow(InvalidArgumentException::class);
 })->with([
-    'empty guard' => [fn () => config()->set('passportless.guard', '')],
-    'unknown guard' => [fn () => config()->set('passportless.guard', 'missing')],
+    'empty guard' => [fn() => config()->set('passportless.guard', '')],
+    'unknown guard' => [fn() => config()->set('passportless.guard', 'missing')],
     'wrong driver' => [function () {
         config()->set('auth.guards.passportless-client.driver', 'session');
     }],
-    'missing guard provider' => [fn () => config()->set('auth.guards.passportless-client.provider', null)],
-    'unknown guard provider' => [fn () => config()->set('auth.guards.passportless-client.provider', 'missing')],
+    'missing guard provider' => [fn() => config()->set('auth.guards.passportless-client.provider', null)],
+    'unknown guard provider' => [fn() => config()->set('auth.guards.passportless-client.provider', 'missing')],
 ]);
 
 it('derives the default provider from the configured guard and fails closed for null-provider rows', function () {

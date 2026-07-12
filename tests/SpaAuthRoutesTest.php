@@ -196,17 +196,17 @@ it('accepts same-origin login requests with normalized origin casing and port', 
 
     $response = app(ValidateSameOrigin::class)->handle(
         $request,
-        fn () => response()->noContent(),
+        fn() => response()->noContent(),
     );
 
     expect($response->getStatusCode())->toBe(204);
 });
 
 it('rejects closure authentication handlers because routes must be cacheable', function () {
-    expect(fn () => Route::passportlessSpaAuth(
+    expect(fn() => Route::passportlessSpaAuth(
         prefix: 'closure-auth',
         guard: 'passportless',
-        authenticate: fn () => null,
+        authenticate: fn() => null,
     ))->toThrow(TypeError::class);
 });
 

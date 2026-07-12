@@ -96,7 +96,7 @@ it('uses the synthesized legacy fallback for explicit fallback guard when guards
         ->and($clientCookies->refreshCookieName())->toBe('client_refresh_token')
         ->and($cookies->createRefreshCookie('refresh')->getPath())->toBe('/api/auth/refresh')
         ->and($clientCookies->createRefreshCookie('refresh')->getPath())->toBe('/api/auth/refresh')
-        ->and(fn () => $cookies->forGuard('passportless-admin'))->toThrow(InvalidArgumentException::class);
+        ->and(fn() => $cookies->forGuard('passportless-admin'))->toThrow(InvalidArgumentException::class);
 });
 
 it('uses guard keyed cookie configuration with fallback inheritance', function () {
@@ -151,7 +151,7 @@ it('uses guard keyed cookie configuration with fallback inheritance', function (
         ->and($forgottenAdminRefresh->getName())->toBe('admin_refresh_token')
         ->and($forgottenAdminRefresh->getPath())->toBe('/api/auth/admin/refresh')
         ->and($forgottenAdminRefresh->isCleared())->toBeTrue()
-        ->and(fn () => $cookies->forGuard('passportless-missing'))->toThrow(InvalidArgumentException::class);
+        ->and(fn() => $cookies->forGuard('passportless-missing'))->toThrow(InvalidArgumentException::class);
 });
 
 it('creates immutable guard scoped cookie managers', function () {
@@ -178,7 +178,7 @@ it('creates immutable guard scoped cookie managers', function () {
         ->and($adminCookies->createRefreshCookie('admin')->getPath())->toBe('/api/auth/admin/refresh')
         ->and($adminCookies->forgetRefreshCookie()->getName())->toBe('admin_refresh_token')
         ->and($cookies->refreshCookieName())->toBe('client_refresh_token')
-        ->and(fn () => $cookies->forGuard('passportless-missing'))->toThrow(InvalidArgumentException::class);
+        ->and(fn() => $cookies->forGuard('passportless-missing'))->toThrow(InvalidArgumentException::class);
 });
 
 it('rejects unsafe guard keyed cookie configuration', function (string $key, mixed $value) {
@@ -203,7 +203,7 @@ it('rejects unsafe guard keyed cookie configuration', function (string $key, mix
     ]);
     config()->set($key, $value);
 
-    expect(fn () => app(PassportlessCookieManager::class))->toThrow(InvalidArgumentException::class);
+    expect(fn() => app(PassportlessCookieManager::class))->toThrow(InvalidArgumentException::class);
 })->with([
     'duplicate effective admin name' => ['passportless.cookie.guards.passportless-admin.csrf.name', 'admin_access_token'],
     'non-array admin refresh role' => ['passportless.cookie.guards.passportless-admin.refresh', 'bad'],
@@ -236,7 +236,7 @@ it('forgets cookies with issue name path domain and security attributes', functi
 it('rejects unsafe cookie security configuration', function (string $key, mixed $value) {
     config()->set($key, $value);
 
-    expect(fn () => app(PassportlessCookieManager::class))->toThrow(InvalidArgumentException::class);
+    expect(fn() => app(PassportlessCookieManager::class))->toThrow(InvalidArgumentException::class);
 })->with([
     'insecure SameSite none' => ['passportless.cookie.same_site', 'none'],
     'readable access token' => ['passportless.cookie.access.http_only', false],
@@ -248,7 +248,7 @@ it('rejects unsafe cookie security configuration', function (string $key, mixed 
 it('rejects ambiguous cookie names and invalid paths', function (string $key, mixed $value) {
     config()->set($key, $value);
 
-    expect(fn () => app(PassportlessCookieManager::class))->toThrow(InvalidArgumentException::class);
+    expect(fn() => app(PassportlessCookieManager::class))->toThrow(InvalidArgumentException::class);
 })->with([
     'duplicate name' => ['passportless.cookie.csrf.name', 'passportless_access_token'],
     'reserved name character' => ['passportless.cookie.access.name', 'access;token'],
@@ -269,7 +269,7 @@ it('allows apostrophes in cookie names', function () {
 it('rejects invalid token lifetimes', function (string $key, mixed $value) {
     config()->set($key, $value);
 
-    expect(fn () => app(PassportlessCookieManager::class))->toThrow(InvalidArgumentException::class);
+    expect(fn() => app(PassportlessCookieManager::class))->toThrow(InvalidArgumentException::class);
 })->with([
     'zero access lifetime' => ['passportless.access_token.expiration', 0],
     'negative refresh lifetime' => ['passportless.refresh_token.expiration', -1],

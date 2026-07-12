@@ -107,10 +107,10 @@ it('treats invalid and inactive access credentials as repeatable no-ops', functi
 
     expect($pair->session->fresh()->revoked_at)->toBeNull();
 })->with([
-    'malformed' => [fn ($pair, $credential) => 'malformed', 'access'],
-    'oversized' => [fn ($pair, $credential) => str_repeat('x', 121), 'access'],
-    'unknown' => [fn ($pair, $credential) => '01J00000000000000000000000|secret', 'access'],
-    'hash mismatch' => [fn ($pair, $credential) => $pair->accessToken->accessToken->getKey().'|wrong', 'access'],
+    'malformed' => [fn($pair, $credential) => 'malformed', 'access'],
+    'oversized' => [fn($pair, $credential) => str_repeat('x', 121), 'access'],
+    'unknown' => [fn($pair, $credential) => '01J00000000000000000000000|secret', 'access'],
+    'hash mismatch' => [fn($pair, $credential) => $pair->accessToken->accessToken->getKey() . '|wrong', 'access'],
     'expired' => [function ($pair, $credential) {
         $pair->accessToken->accessToken->forceFill(['expires_at' => now()->subMinute()])->save();
 
@@ -134,10 +134,10 @@ it('treats invalid and inactive refresh credentials as repeatable no-ops', funct
 
     expect($pair->session->fresh()->revoked_at)->toBeNull();
 })->with([
-    'malformed' => [fn ($pair) => 'malformed'],
-    'oversized' => [fn ($pair) => str_repeat('x', 121)],
-    'unknown' => [fn ($pair) => '01J00000000000000000000000|secret'],
-    'hash mismatch' => [fn ($pair) => $pair->refreshToken->getKey().'|wrong'],
+    'malformed' => [fn($pair) => 'malformed'],
+    'oversized' => [fn($pair) => str_repeat('x', 121)],
+    'unknown' => [fn($pair) => '01J00000000000000000000000|secret'],
+    'hash mismatch' => [fn($pair) => $pair->refreshToken->getKey() . '|wrong'],
     'expired' => [function ($pair) {
         $pair->refreshToken->forceFill(['expires_at' => now()->subMinute()])->save();
 

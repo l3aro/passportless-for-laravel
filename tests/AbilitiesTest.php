@@ -37,8 +37,7 @@ it('can disable wildcard token abilities', function () {
 it('checks abilities through the tokenable model trait', function () {
     $token = new PersonalAccessToken(['abilities' => ['orders:read']]);
 
-    $user = new class extends Model
-    {
+    $user = new class extends Model {
         use HasPassportless;
     };
 
@@ -73,7 +72,7 @@ it('authenticates bearer tokens through the package guard', function () {
     $user = PassportlessTestUser::query()->create();
     $newToken = $user->createToken('cli', ['orders:read']);
 
-    request()->headers->set('Authorization', 'Bearer '.$newToken->plainTextToken);
+    request()->headers->set('Authorization', 'Bearer ' . $newToken->plainTextToken);
 
     $resolvedUser = Auth::guard('passportless')->user();
 
@@ -115,7 +114,7 @@ it('throttles last used updates on bearer token authentication', function () {
     $user = PassportlessThrottleTestUser::query()->create();
     $newToken = $user->createToken('cli', ['orders:read']);
 
-    request()->headers->set('Authorization', 'Bearer '.$newToken->plainTextToken);
+    request()->headers->set('Authorization', 'Bearer ' . $newToken->plainTextToken);
 
     Auth::guard('passportless')->user();
 
@@ -161,62 +160,58 @@ it('atomically throttles concurrent last used updates', function () {
 
 it('requires every ability for abilities middleware', function () {
     $request = Request::create('/');
-    $request->setUserResolver(fn () => new class
-    {
+    $request->setUserResolver(fn() => new class {
         public function tokenCan(string $ability): bool
         {
             return in_array($ability, ['orders:read', 'orders:write'], true);
         }
     });
 
-    $response = (new CheckAbilities)->handle($request, fn () => response('ok'), 'orders:read', 'orders:write');
+    $response = (new CheckAbilities())->handle($request, fn() => response('ok'), 'orders:read', 'orders:write');
 
     expect($response->getContent())->toBe('ok');
 });
 
 it('requires any ability for ability middleware', function () {
     $request = Request::create('/');
-    $request->setUserResolver(fn () => new class
-    {
+    $request->setUserResolver(fn() => new class {
         public function tokenCan(string $ability): bool
         {
             return $ability === 'orders:read';
         }
     });
 
-    $response = (new CheckForAnyAbility)->handle($request, fn () => response('ok'), 'orders:write', 'orders:read');
+    $response = (new CheckForAnyAbility())->handle($request, fn() => response('ok'), 'orders:write', 'orders:read');
 
     expect($response->getContent())->toBe('ok');
 });
 
 it('rejects ability middleware without an authenticated token user', function () {
-    (new CheckAbilities)->handle(Request::create('/'), fn () => response('ok'), 'orders:read');
+    (new CheckAbilities())->handle(Request::create('/'), fn() => response('ok'), 'orders:read');
 })->throws(AuthenticationException::class);
 
 it('rejects ability middleware without required abilities', function () {
     $request = Request::create('/');
-    $request->setUserResolver(fn () => new class
-    {
+    $request->setUserResolver(fn() => new class {
         public function tokenCan(string $ability): bool
         {
             return true;
         }
     });
 
-    (new CheckAbilities)->handle($request, fn () => response('ok'));
+    (new CheckAbilities())->handle($request, fn() => response('ok'));
 })->throws(AuthenticationException::class);
 
 it('rejects any ability middleware without required abilities', function () {
     $request = Request::create('/');
-    $request->setUserResolver(fn () => new class
-    {
+    $request->setUserResolver(fn() => new class {
         public function tokenCan(string $ability): bool
         {
             return true;
         }
     });
 
-    (new CheckForAnyAbility)->handle($request, fn () => response('ok'));
+    (new CheckForAnyAbility())->handle($request, fn() => response('ok'));
 })->throws(AuthenticationException::class);
 
 class PassportlessTestUser extends Tokenable

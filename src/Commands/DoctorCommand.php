@@ -45,7 +45,7 @@ class DoctorCommand extends Command
         }
 
         $this->newLine();
-        $this->error('Passportless doctor found '.count($this->errors).' configuration error(s).');
+        $this->error('Passportless doctor found ' . count($this->errors) . ' configuration error(s).');
 
         return self::FAILURE;
     }
@@ -376,7 +376,7 @@ class DoctorCommand extends Command
                     }
                 }
             } catch (Throwable $exception) {
-                $this->recordError("Could not inspect Passportless table [{$table}] (".$exception::class.').');
+                $this->recordError("Could not inspect Passportless table [{$table}] (" . $exception::class . ').');
             }
         }
     }
@@ -388,7 +388,7 @@ class DoctorCommand extends Command
     {
         return array_values(array_filter(
             $router->getRoutes()->getRoutes(),
-            static fn (Route $route): bool => is_string($route->defaults['passportlessGuard'] ?? null),
+            static fn(Route $route): bool => is_string($route->defaults['passportlessGuard'] ?? null),
         ));
     }
 
@@ -523,15 +523,15 @@ class DoctorCommand extends Command
 
     protected function cookiePathCoversRoute(string $cookiePath, string $routeUri): bool
     {
-        $path = '/'.trim($cookiePath, '/');
-        $routePath = '/'.trim($routeUri, '/');
+        $path = '/' . trim($cookiePath, '/');
+        $routePath = '/' . trim($routeUri, '/');
 
-        return $path === '/' || $routePath === $path || str_starts_with($routePath, $path.'/');
+        return $path === '/' || $routePath === $path || str_starts_with($routePath, $path . '/');
     }
 
     protected function recordError(string $message): void
     {
         $this->errors[] = $message;
-        $this->error('FAIL: '.$message);
+        $this->error('FAIL: ' . $message);
     }
 }
