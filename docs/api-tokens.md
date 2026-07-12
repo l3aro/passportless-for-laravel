@@ -59,11 +59,11 @@ $token = $user->createToken('admin', ['*']);
 
 ## Protecting routes
 
-| Alias | Meaning |
-| --- | --- |
+| Alias               | Meaning                                                                                |
+| ------------------- | -------------------------------------------------------------------------------------- |
 | `auth:passportless` | Authenticate via Bearer (or access cookie — see [Browser cookies](browser-cookies.md)) |
-| `abilities:foo,bar` | Token must have **all** listed abilities |
-| `ability:foo,bar` | Token must have **any** listed ability |
+| `abilities:foo,bar` | Token must have **all** listed abilities                                               |
+| `ability:foo,bar`   | Token must have **any** listed ability                                                 |
 
 ```php
 Route::get('/orders', OrdersController::class)

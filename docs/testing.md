@@ -48,12 +48,12 @@ class ExampleTest extends TestCase
 
 ## Helpers
 
-| Method | Role |
-| --- | --- |
-| `actingAsPassportless($user, $guard = 'passportless')` | `actingAs` for a Passportless guard; validates model matches guard provider |
-| `withPassportlessCookieSession($user, $guard = 'passportless')` | Injects access, refresh, and CSRF request cookies + `X-CSRF-TOKEN` |
-| `assertPassportlessAuthCookiesQueued($response, $guard = 'passportless')` | Assert access/refresh/CSRF cookies were queued |
-| `assertPassportlessAuthCookiesForgotten($response, $guard = 'passportless')` | Assert forget cookies were queued |
+| Method                                                                       | Role                                                                        |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `actingAsPassportless($user, $guard = 'passportless')`                       | `actingAs` for a Passportless guard; validates model matches guard provider |
+| `withPassportlessCookieSession($user, $guard = 'passportless')`              | Injects access, refresh, and CSRF request cookies + `X-CSRF-TOKEN`          |
+| `assertPassportlessAuthCookiesQueued($response, $guard = 'passportless')`    | Assert access/refresh/CSRF cookies were queued                              |
+| `assertPassportlessAuthCookiesForgotten($response, $guard = 'passportless')` | Assert forget cookies were queued                                           |
 
 Cookie setup injects normal request cookies for the selected guard. It does **not** return plain-text token credentials to your test.
 

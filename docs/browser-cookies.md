@@ -49,11 +49,11 @@ Route::passportlessSpaAuth(
 );
 ```
 
-| Method | Path | Role |
-| --- | --- | --- |
-| `POST` | `{prefix}/login` | Issue pair + set cookies |
-| `POST` | `{prefix}/refresh` | Rotate from refresh cookie |
-| `POST` | `{prefix}/logout` | Revoke session + forget cookies |
+| Method | Path               | Role                            |
+| ------ | ------------------ | ------------------------------- |
+| `POST` | `{prefix}/login`   | Issue pair + set cookies        |
+| `POST` | `{prefix}/refresh` | Rotate from refresh cookie      |
+| `POST` | `{prefix}/logout`  | Revoke session + forget cookies |
 
 Notes:
 
@@ -125,11 +125,11 @@ Route::post('/auth/login', AuthenticateUserController::class)
 
 Browsers only send a cookie when the request path starts with the cookie’s `path`:
 
-| Cookie | Default path | Why |
-| --- | --- | --- |
-| Access | `/` | Needed on every protected API route |
-| CSRF | `/` | JS must read it for any write route |
-| Refresh | `/api/auth` | Narrow path for a long-lived secret; must cover **both** refresh and logout |
+| Cookie  | Default path | Why                                                                         |
+| ------- | ------------ | --------------------------------------------------------------------------- |
+| Access  | `/`          | Needed on every protected API route                                         |
+| CSRF    | `/`          | JS must read it for any write route                                         |
+| Refresh | `/api/auth`  | Narrow path for a long-lived secret; must cover **both** refresh and logout |
 
 Do not set refresh path to `/` unless you accept sending it on every same-site request. Do not set it to `/api/auth/refresh` alone if logout also needs the refresh cookie when access is missing/expired.
 

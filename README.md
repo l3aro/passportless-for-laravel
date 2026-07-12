@@ -11,11 +11,11 @@ Abilities are simple permission strings on access tokens. They are not OAuth sco
 
 ## When to use
 
-| Use Passportless when… | Prefer something else when… |
-| --- | --- |
-| Your Laravel app issues tokens for **its own** clients (mobile, CLI, internal API, server-to-server) | You need a full **OAuth2** authorization server → [Laravel Passport](https://laravel.com/docs/passport) |
-| You want hashed access tokens + optional refresh rotation without OAuth clients/redirects | You mainly need **SPA session cookies** with Laravel’s first-party stack → [Laravel Sanctum](https://laravel.com/docs/sanctum) is often enough |
-| You want low ops: publish migrations, register a guard, protect routes | You need third-party delegated access, authorization-code grants, or OAuth clients |
+| Use Passportless when…                                                                               | Prefer something else when…                                                                                                                    |
+| ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Your Laravel app issues tokens for **its own** clients (mobile, CLI, internal API, server-to-server) | You need a full **OAuth2** authorization server → [Laravel Passport](https://laravel.com/docs/passport)                                        |
+| You want hashed access tokens + optional refresh rotation without OAuth clients/redirects            | You mainly need **SPA session cookies** with Laravel’s first-party stack → [Laravel Sanctum](https://laravel.com/docs/sanctum) is often enough |
+| You want low ops: publish migrations, register a guard, protect routes                               | You need third-party delegated access, authorization-code grants, or OAuth clients                                                             |
 
 **Two client paths** (same package):
 
@@ -97,15 +97,15 @@ That’s the core loop.
 
 ## Next steps
 
-| Guide | Topic |
-| --- | --- |
-| [API tokens](docs/api-tokens.md) | Abilities, middleware, refresh pairs, logout, listing tokens |
-| [Browser cookies](docs/browser-cookies.md) | SPA HttpOnly cookies, SPA routes, CSRF, CORS |
-| [Multiple guards](docs/multi-guard.md) | Users vs staff (separate identity models) |
-| [Configuration](docs/configuration.md) | Expirations, reuse detection, cookie settings |
-| [Operations](docs/operations.md) | `passportless:doctor`, `passportless:prune-stale` |
-| [Testing](docs/testing.md) | Host-app test helpers |
-| [Docs index](docs/README.md) | Full documentation map |
+| Guide                                      | Topic                                                        |
+| ------------------------------------------ | ------------------------------------------------------------ |
+| [API tokens](docs/api-tokens.md)           | Abilities, middleware, refresh pairs, logout, listing tokens |
+| [Browser cookies](docs/browser-cookies.md) | SPA HttpOnly cookies, SPA routes, CSRF, CORS                 |
+| [Multiple guards](docs/multi-guard.md)     | Users vs staff (separate identity models)                    |
+| [Configuration](docs/configuration.md)     | Expirations, reuse detection, cookie settings                |
+| [Operations](docs/operations.md)           | `passportless:doctor`, `passportless:prune-stale`            |
+| [Testing](docs/testing.md)                 | Host-app test helpers                                        |
+| [Docs index](docs/README.md)               | Full documentation map                                       |
 
 ## Features
 
@@ -119,13 +119,13 @@ That’s the core loop.
 
 ## Comparison
 
-| | Passportless | Laravel Passport | Laravel Sanctum |
-| --- | --- | --- | --- |
-| OAuth2 | No | Yes | No |
-| Best fit | First-party API tokens (mobile, CLI, internal APIs) | Third-party / delegated OAuth | SPAs + simple personal access tokens |
-| Ops cost | Low | High | Low |
-| Permissions | Token abilities | OAuth scopes | Token abilities |
-| Extras | Refresh rotation, sessions, cookie helpers | Full OAuth server | SPA cookie auth, CSRF |
+|             | Passportless                                        | Laravel Passport              | Laravel Sanctum                      |
+| ----------- | --------------------------------------------------- | ----------------------------- | ------------------------------------ |
+| OAuth2      | No                                                  | Yes                           | No                                   |
+| Best fit    | First-party API tokens (mobile, CLI, internal APIs) | Third-party / delegated OAuth | SPAs + simple personal access tokens |
+| Ops cost    | Low                                                 | High                          | Low                                  |
+| Permissions | Token abilities                                     | OAuth scopes                  | Token abilities                      |
+| Extras      | Refresh rotation, sessions, cookie helpers          | Full OAuth server             | SPA cookie auth, CSRF                |
 
 ## Changelog
 
