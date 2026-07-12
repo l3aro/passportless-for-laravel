@@ -2,6 +2,21 @@
 
 All notable changes to Passportless will be documented in this file.
 
+## v1.2.0 - 2026-07-12
+
+### What's Changed
+
+* SPA auth: same-origin middleware, refresh-token revocation, cacheable handlers, cookie path fix by @l3aro in https://github.com/l3aro/passportless-for-laravel/pull/7
+* feat: add session-level revocation service by @l3aro in https://github.com/l3aro/passportless-for-laravel/pull/8
+* refactor: consolidate session revocation, remove final from AuthBinding, update arch tests by @l3aro in https://github.com/l3aro/passportless-for-laravel/pull/9
+* Add passportless doctor command by @l3aro in https://github.com/l3aro/passportless-for-laravel/pull/10
+* feat: add InteractsWithPassportless testing trait by @l3aro in https://github.com/l3aro/passportless-for-laravel/pull/11
+* fix: allow apostrophes in cookie names by @l3aro in https://github.com/l3aro/passportless-for-laravel/pull/12
+* feat: add logoutCurrentSession and logoutAllSessions methods by @l3aro in https://github.com/l3aro/passportless-for-laravel/pull/13
+* chore: code cleanup — Pint style fixes, Pint config, docs restructure by @l3aro in https://github.com/l3aro/passportless-for-laravel/pull/14
+
+**Full Changelog**: https://github.com/l3aro/passportless-for-laravel/compare/v1.1.3...v1.2.0
+
 ## v1.1.3 - 2026-07-10
 
 ### What's Changed
