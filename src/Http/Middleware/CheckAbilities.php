@@ -14,7 +14,7 @@ class CheckAbilities
         $user = $request->user();
 
         if (! $user || ! method_exists($user, 'tokenCan') || $abilities === []) {
-            throw new AuthenticationException;
+            throw new AuthenticationException();
         }
 
         foreach ($abilities as $ability) {

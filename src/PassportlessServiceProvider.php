@@ -71,7 +71,7 @@ class PassportlessServiceProvider extends PackageServiceProvider
             $authenticator = $app->make(PassportlessAuthenticator::class);
 
             $guard = new PassportlessRequestGuard(
-                fn ($request) => $authenticator->authenticate($request, $name),
+                fn($request) => $authenticator->authenticate($request, $name),
                 $app['request'],
                 Auth::createUserProvider($config['provider'] ?? null),
             );

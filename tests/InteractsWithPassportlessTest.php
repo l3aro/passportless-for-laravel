@@ -88,13 +88,13 @@ beforeEach(function () {
         $table->timestamps();
     });
 
-    Route::middleware('auth:passportless')->get('/passportless-testing/me', fn () => response()->noContent());
-    Route::middleware(['passportless.csrf', 'auth:passportless'])->post('/passportless-testing/me', fn () => response()->noContent());
-    Route::get('/passportless-testing/cookies', fn () => response()->noContent()
+    Route::middleware('auth:passportless')->get('/passportless-testing/me', fn() => response()->noContent());
+    Route::middleware(['passportless.csrf', 'auth:passportless'])->post('/passportless-testing/me', fn() => response()->noContent());
+    Route::get('/passportless-testing/cookies', fn() => response()->noContent()
         ->withCookie(app(PassportlessCookieManager::class)->createAccessCookie('access'))
         ->withCookie(app(PassportlessCookieManager::class)->createRefreshCookie('refresh'))
         ->withCookie(app(PassportlessCookieManager::class)->createCsrfCookie('csrf')));
-    Route::get('/passportless-testing/forget-cookies', fn () => response()->noContent()
+    Route::get('/passportless-testing/forget-cookies', fn() => response()->noContent()
         ->withCookie(app(PassportlessCookieManager::class)->forgetAccessCookie())
         ->withCookie(app(PassportlessCookieManager::class)->forgetRefreshCookie())
         ->withCookie(app(PassportlessCookieManager::class)->forgetCsrfCookie()));
@@ -110,7 +110,7 @@ it('impersonates through Laravel without issuing a Passportless token', function
 it('rejects impersonation through a guard with a different provider model', function () {
     $user = PassportlessTestingUser::query()->create();
 
-    expect(fn () => $this->actingAsPassportless($user, 'passportless-admin'))
+    expect(fn() => $this->actingAsPassportless($user, 'passportless-admin'))
         ->toThrow(InvalidArgumentException::class);
 });
 
@@ -127,7 +127,7 @@ it('sets guard-scoped cookie credentials without exposing the token pair', funct
 it('preserves guard and provider validation for cookie session setup', function () {
     $user = PassportlessTestingUser::query()->create();
 
-    expect(fn () => $this->withPassportlessCookieSession($user, 'passportless-admin'))
+    expect(fn() => $this->withPassportlessCookieSession($user, 'passportless-admin'))
         ->toThrow(InvalidArgumentException::class)
         ->and(PersonalAccessToken::query()->count())->toBe(0)
         ->and(RefreshToken::query()->count())->toBe(0);

@@ -30,3 +30,4 @@ phpstan.neon
 testbench.yaml
 /coverage
 /.opencode
+/.php-cs-fixer.cache

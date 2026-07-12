@@ -60,7 +60,7 @@ class PersonalAccessToken extends Model implements HasAbilities
     public function recordUsage(Carbon $usedAt): bool
     {
         $threshold = $usedAt->copy()->subSeconds(
-            max(0, (int) config('passportless.access_token.last_used_update_interval', 60))
+            max(0, (int) config('passportless.access_token.last_used_update_interval', 60)),
         );
 
         $updated = static::query()

@@ -80,7 +80,7 @@ it('prefers bearer credentials over access cookies', function () {
     $cookieToken = $user->createToken('browser', ['orders:write']);
     $cookieName = app(PassportlessCookieManager::class)->accessCookieName();
 
-    request()->headers->set('Authorization', 'Bearer '.$bearerToken->plainTextToken);
+    request()->headers->set('Authorization', 'Bearer ' . $bearerToken->plainTextToken);
     request()->cookies->set($cookieName, $cookieToken->plainTextToken);
 
     $resolvedUser = Auth::guard('passportless')->user();
@@ -94,7 +94,7 @@ it('prefers bearer credentials over access cookies', function () {
     expect($resolvedUser->{'tokenCan'}('orders:read'))->toBeTrue()
         ->and($resolvedUser->{'tokenCan'}('orders:write'))->toBeFalse()
         ->and($resolvedUser->{'currentAccessToken'}()->getKey())->toBe($bearerToken->accessToken->getKey())
-        ->and(request()->headers->get('Authorization'))->toBe('Bearer '.$bearerToken->plainTextToken);
+        ->and(request()->headers->get('Authorization'))->toBe('Bearer ' . $bearerToken->plainTextToken);
 });
 
 it('does not fall back to cookies when bearer credentials are invalid', function () {

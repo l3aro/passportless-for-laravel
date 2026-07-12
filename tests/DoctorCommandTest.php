@@ -71,7 +71,7 @@ it('reports a provider model that does not use HasPassportless', function () {
     config()->set('auth.providers.users.model', User::class);
 
     $this->artisan('passportless:doctor')
-        ->expectsOutput('FAIL: Passportless provider model ['.User::class.'] for guard [passportless] must use HasPassportless.')
+        ->expectsOutput('FAIL: Passportless provider model [' . User::class . '] for guard [passportless] must use HasPassportless.')
         ->assertFailed();
 });
 
@@ -128,7 +128,7 @@ it('does not retain errors between command invocations', function () {
     config()->set('auth.providers.users.model', User::class);
 
     $this->artisan('passportless:doctor')
-        ->expectsOutput('FAIL: Passportless provider model ['.User::class.'] for guard [passportless] must use HasPassportless.')
+        ->expectsOutput('FAIL: Passportless provider model [' . User::class . '] for guard [passportless] must use HasPassportless.')
         ->assertFailed();
 
     config()->set('auth.providers.users.model', PassportlessDoctorUser::class);

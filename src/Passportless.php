@@ -40,7 +40,7 @@ class Passportless
             'expires_at' => $expiresAt ?? now()->addMinutes((int) config('passportless.access_token.expiration', 15)),
         ]);
 
-        return new NewAccessToken($token, $token->getKey().'|'.$plainTextToken);
+        return new NewAccessToken($token, $token->getKey() . '|' . $plainTextToken);
     }
 
     /**
@@ -317,7 +317,7 @@ class Passportless
 
         $session->forceFill(['last_used_at' => now()])->save();
 
-        return new NewTokenPair($accessToken, $refreshToken, $session, $refreshToken->getKey().'|'.$plainTextRefreshToken);
+        return new NewTokenPair($accessToken, $refreshToken, $session, $refreshToken->getKey() . '|' . $plainTextRefreshToken);
     }
 
     protected function revokeFamily(string $familyId, AuthBinding $binding): void
